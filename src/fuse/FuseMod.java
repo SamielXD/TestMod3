@@ -18,11 +18,11 @@ public class FuseMod extends Mod {
         Log.info("Fuse mod initializing...");
         
         Events.on(ClientLoadEvent.class, e -> {
-            init();
+            initialize();
         });
     }
     
-    private void init() {
+    private void initialize() {
         Log.info("Fuse systems starting...");
         
         camera = new FuseCamera();
@@ -57,9 +57,5 @@ public class FuseMod extends Mod {
         controls.hide();
         hud.hide();
         Log.info("Fuse mode: INACTIVE");
-    }
-    
-    @Override
-    public void init() {
     }
 }
