@@ -5,7 +5,9 @@ import arc.graphics.*;
 import arc.scene.ui.*;
 import arc.scene.ui.layout.*;
 import arc.struct.*;
+import arc.util.*;
 import arc.util.serialization.*;
+import mindustry.*;
 import mindustry.gen.*;
 import mindustry.ui.*;
 import mindustry.ui.dialogs.*;
@@ -223,7 +225,7 @@ public class NodeEditor extends BaseDialog {
                     nodeDataList.add(data);
                 }
                 
-                String json = JsonIO.json().toJson(nodeDataList);
+                String json = new Json().toJson(nodeDataList);
                 
                 Core.files.local("mods/studio-scripts/" + currentScriptName + ".json").writeString(json);
                 
@@ -232,7 +234,7 @@ public class NodeEditor extends BaseDialog {
                 
                 dialog.hide();
             } catch(Exception e) {
-                Vars.ui.showException(e);
+                Log.err("Save failed", e);
             }
         }).size(150f, 50f);
         
@@ -269,7 +271,7 @@ public class NodeEditor extends BaseDialog {
     private void loadScript(String name) {
         try {
             String json = Core.files.local("mods/studio-scripts/" + name + ".json").readString();
-            Seq<NodeData> nodeDataList = JsonIO.json().fromJson(Seq.class, json);
+            Seq<NodeData> nodeDataList = new Json().fromJson(Seq.class, json);
             
             canvas.nodes.clear();
             Seq<Node> loadedNodes = new Seq<>();
@@ -309,7 +311,7 @@ public class NodeEditor extends BaseDialog {
             statusLabel.setText("Loaded: " + name);
             
         } catch(Exception e) {
-            Vars.ui.showException(e);
+            Log.err("Load failed", e);
         }
     }
     
@@ -329,13 +331,13 @@ public class NodeEditor extends BaseDialog {
             }
             
             if(!hasEventNode) {
-                Vars.ui.showInfoFade("No event nodes found! Add an 'On Start', 'On Wave', or 'On Unit Spawn' node.");
+                Vars.ui.showInfoFade("No event nodes! Add 'On Start', 'On Wave', or 'On Unit Spawn'.");
             } else {
                 statusLabel.setText("Script executed!");
             }
             
         } catch(Exception e) {
-            Vars.ui.showException(e);
+            Log.err("Run failed", e);
         }
     }
     
