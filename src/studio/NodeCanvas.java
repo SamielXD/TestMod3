@@ -122,7 +122,7 @@ public class NodeCanvas extends Element {
             @Override
             public boolean scrolled(InputEvent event, float x, float y, float amountX, float amountY) {
                 float prevZoom = zoom;
-                zoom = Mathf.clamp(zoom - amountY * 0.1f, 0.3f, 2f);
+                zoom = arc.math.Mathf.clamp(zoom - amountY * 0.1f, 0.3f, 2f);
                 
                 Vec2 mouseWorld = screenToWorld(x, y);
                 Vec2 mouseWorldAfter = screenToWorld(x, y);
@@ -194,15 +194,15 @@ public class NodeCanvas extends Element {
             
             Draw.color(Color.white);
             Lines.stroke(2f);
-            Lines.crect(screenPos.x, screenPos.y, screenWidth, screenHeight);
+            Lines.rect(screenPos.x, screenPos.y, screenWidth, screenHeight);
             
             Fonts.outline.getData().setScale(0.5f * zoom);
-            Fonts.outline.draw(node.label, screenPos.x + 10f * zoom, screenPos.y + screenHeight - 15f * zoom, Color.white);
+            Fonts.outline.draw(node.label, screenPos.x + 10f * zoom, screenPos.y + screenHeight - 15f * zoom);
             
             if(!node.value.isEmpty()) {
                 Fonts.outline.getData().setScale(0.35f * zoom);
                 String displayValue = node.value.length() > 15 ? node.value.substring(0, 15) + "..." : node.value;
-                Fonts.outline.draw(displayValue, screenPos.x + 10f * zoom, screenPos.y + 20f * zoom, Color.lightGray);
+                Fonts.outline.draw(displayValue, screenPos.x + 10f * zoom, screenPos.y + 20f * zoom);
             }
             
             Fonts.outline.getData().setScale(1f);
