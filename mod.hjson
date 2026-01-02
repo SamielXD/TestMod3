@@ -1,11 +1,12 @@
 {
-  "name": "tooltips+",
-  "displayName": "ToolTips+",
+  "name": "fuse",
+  "displayName": "Fuse",
   "author": "YourName",
-  "description": "Enhanced tooltips showing extra stats",
+  "description": "Merge with your units. Immersive FPV control with mobile support.",
   "version": "1.0",
   "minGameVersion": "154",
   "dependencies": [],
   "hidden": false,
-  "main": "tooltipsplus.TooltipsPlusMod"
+  "java": true,
+  "main": "fuse.FuseMod"
 }
