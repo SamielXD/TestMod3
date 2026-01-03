@@ -16,6 +16,7 @@ public class NodeEditor extends BaseDialog {
     private NodeCanvas canvas;
     private String currentScriptName = "Untitled";
     private Label statusLabel;
+    private Label modeLabel;
 
     public NodeEditor() {
         super("Studio - Node Editor");
@@ -24,57 +25,74 @@ public class NodeEditor extends BaseDialog {
         canvas.onNodeEdit = () -> showEditDialog(canvas.selectedNode);
 
         buildUI();
-
-        addCloseButton();
-
-        buttons.button("Save", Icon.save, this::saveScript).size(200f, 100f);
-        buttons.button("Load", Icon.download, this::showLoadDialog).size(200f, 100f);
-        buttons.button("Run", Icon.play, this::runScript).size(200f, 100f);
     }
 
     private void buildUI() {
         Table main = new Table();
         main.setFillParent(true);
 
+        Table topBar = new Table(Styles.black6);
+        
+        ScrollPane topScroll = new ScrollPane(topBar);
+        topScroll.setScrollingDisabled(false, true);
+        
+        topBar.defaults().size(200f, 100f).pad(5f);
+        
+        topBar.button("MOVE", Icon.move, () -> {
+            canvas.mode = "move";
+            updateModeLabel();
+        });
+        topBar.button("EDIT", Icon.edit, () -> {
+            canvas.mode = "edit";
+            updateModeLabel();
+        });
+        topBar.button("LINK", Icon.link, () -> {
+            canvas.mode = "connect";
+            updateModeLabel();
+        });
+        topBar.button("DELETE", Icon.trash, () -> {
+            canvas.mode = "delete";
+            updateModeLabel();
+        });
+        topBar.button("ADD NODE", Icon.add, () -> showAddNodeDialog());
+        topBar.button("ZOOM -", Icon.zoom, () -> {
+            canvas.zoom = arc.math.Mathf.clamp(canvas.zoom - 0.2f, 0.2f, 3f);
+        });
+        topBar.button("ZOOM +", Icon.zoom, () -> {
+            canvas.zoom = arc.math.Mathf.clamp(canvas.zoom + 0.2f, 0.2f, 3f);
+        });
+
+        main.add(topScroll).fillX().height(120f).row();
+
+        modeLabel = new Label("MODE: MOVE");
+        modeLabel.setFontScale(2f);
+        main.add(modeLabel).fillX().pad(10f).row();
+
         main.add(canvas).grow().row();
 
         statusLabel = new Label("");
         statusLabel.setFontScale(1.5f);
-        main.add(statusLabel).fillX().pad(10f);
+        main.add(statusLabel).fillX().pad(10f).row();
+
+        Table bottomBar = new Table(Styles.black6);
+        
+        ScrollPane bottomScroll = new ScrollPane(bottomBar);
+        bottomScroll.setScrollingDisabled(false, true);
+        
+        bottomBar.defaults().size(200f, 100f).pad(5f);
+        
+        bottomBar.button("CLOSE", Icon.left, () -> hide());
+        bottomBar.button("SAVE", Icon.save, () -> saveScript());
+        bottomBar.button("LOAD", Icon.download, () -> showLoadDialog());
+        bottomBar.button("RUN", Icon.play, () -> runScript());
+
+        main.add(bottomScroll).fillX().height(120f);
 
         cont.add(main).grow();
     }
 
-    private void setupModeButtons(TextButton moveBtn, TextButton editBtn, TextButton linkBtn, TextButton delBtn) {
-        moveBtn.clicked(() -> {
-            moveBtn.setChecked(true);
-            editBtn.setChecked(false);
-            linkBtn.setChecked(false);
-            delBtn.setChecked(false);
-        });
-
-        editBtn.clicked(() -> {
-            moveBtn.setChecked(false);
-            editBtn.setChecked(true);
-            linkBtn.setChecked(false);
-            delBtn.setChecked(false);
-        });
-
-        linkBtn.clicked(() -> {
-            moveBtn.setChecked(false);
-            editBtn.setChecked(false);
-            linkBtn.setChecked(true);
-            delBtn.setChecked(false);
-        });
-
-        delBtn.clicked(() -> {
-            moveBtn.setChecked(false);
-            editBtn.setChecked(false);
-            linkBtn.setChecked(false);
-            delBtn.setChecked(true);
-        });
-
-        moveBtn.setChecked(true);
+    private void updateModeLabel() {
+        modeLabel.setText("MODE: " + canvas.mode.toUpperCase());
     }
 
     private void showAddNodeDialog() {
@@ -330,65 +348,6 @@ public class NodeEditor extends BaseDialog {
         } catch(Exception e) {
             Log.err("Run failed", e);
         }
-    }
-
-    @Override
-    public void addCloseButton() {
-        buttons.button("@close", Icon.left, () -> {
-            hide();
-        }).size(200f, 100f);
-
-        buttons.button("MODES", Icon.menu, () -> {
-            showModesDialog();
-        }).size(200f, 100f);
-
-        buttons.button("ADD NODE", Icon.add, () -> {
-            showAddNodeDialog();
-        }).size(200f, 100f);
-
-        buttons.button("ZOOM -", Icon.zoom, () -> {
-            canvas.zoom = arc.math.Mathf.clamp(canvas.zoom - 0.2f, 0.2f, 3f);
-        }).size(200f, 100f);
-
-        buttons.button("ZOOM +", Icon.zoom, () -> {
-            canvas.zoom = arc.math.Mathf.clamp(canvas.zoom + 0.2f, 0.2f, 3f);
-        }).size(200f, 100f);
-    }
-
-    private void showModesDialog() {
-        BaseDialog dialog = new BaseDialog("SELECT MODE");
-        dialog.cont.defaults().size(400f, 120f).pad(10f);
-
-        TextButton moveBtn = dialog.cont.button("MOVE MODE", () -> {
-            canvas.mode = "move";
-            dialog.hide();
-        }).get();
-        dialog.cont.row();
-
-        TextButton editBtn = dialog.cont.button("EDIT MODE", () -> {
-            canvas.mode = "edit";
-            dialog.hide();
-        }).get();
-        dialog.cont.row();
-
-        TextButton linkBtn = dialog.cont.button("LINK MODE", () -> {
-            canvas.mode = "connect";
-            dialog.hide();
-        }).get();
-        dialog.cont.row();
-
-        TextButton delBtn = dialog.cont.button("DELETE MODE", () -> {
-            canvas.mode = "delete";
-            dialog.hide();
-        }).get();
-
-        if(canvas.mode.equals("move")) moveBtn.setChecked(true);
-        if(canvas.mode.equals("edit")) editBtn.setChecked(true);
-        if(canvas.mode.equals("connect")) linkBtn.setChecked(true);
-        if(canvas.mode.equals("delete")) delBtn.setChecked(true);
-
-        dialog.addCloseButton();
-        dialog.show();
     }
 
     public static class NodeData {
