@@ -17,7 +17,7 @@ public class NodeEditor extends BaseDialog {
     public NodeCanvas canvas;
     private String currentScriptName = "Untitled";
     private Label statusLabel;
-    private String editorMode = "game";
+    public String editorMode = "game"; // FIXED: Changed from private to public
 
     public NodeEditor() {
         super("Studio - Node Editor");
@@ -175,7 +175,7 @@ public class NodeEditor extends BaseDialog {
             if(i < node.inputs.size - 1) sb.append("|");
         }
         return sb.toString();
-    } // FIXED: Added missing closing brace here!
+    }
 
     private void saveScript() {
         BaseDialog dialog = new BaseDialog("Save Script");
@@ -288,7 +288,8 @@ public class NodeEditor extends BaseDialog {
             Json jsonParser = new Json();
             jsonParser.setIgnoreUnknownFields(true);
 
-            Seq nodeDataList = jsonParser.fromJson(Seq.class, json);
+            // FIXED: Use fromJson with proper class type
+            Seq<NodeData> nodeDataList = jsonParser.fromJson(Seq.class, NodeData.class, json);
 
             if(nodeDataList == null || nodeDataList.size == 0) {
                 throw new Exception("No nodes in file");
@@ -297,9 +298,7 @@ public class NodeEditor extends BaseDialog {
             canvas.nodes.clear();
             Seq<Node> loadedNodes = new Seq<>();
 
-            for(Object obj : nodeDataList) {
-                NodeData data = jsonParser.readValue(NodeData.class, jsonParser.toJson(obj));
-
+            for(NodeData data : nodeDataList) {
                 Node node = new Node();
                 node.id = data.id != null ? data.id : java.util.UUID.randomUUID().toString();
                 node.type = data.type != null ? data.type : "action";
@@ -319,9 +318,9 @@ public class NodeEditor extends BaseDialog {
                 loadedNodes.add(node);
             }
 
+            // Restore connections
             for(int i = 0; i < nodeDataList.size; i++) {
-                Object obj = nodeDataList.get(i);
-                NodeData data = jsonParser.readValue(NodeData.class, jsonParser.toJson(obj));
+                NodeData data = nodeDataList.get(i);
                 Node node = loadedNodes.get(i);
 
                 if(data.connectionIds != null && data.connectionIds.size > 0) {
@@ -344,7 +343,7 @@ public class NodeEditor extends BaseDialog {
             Vars.ui.showInfoFade("Load failed: " + e.getMessage());
             statusLabel.setText("Load FAILED!");
         }
-    } // FIXED: Added missing closing brace here!
+    }
 
     private void runScript() {
         try {
