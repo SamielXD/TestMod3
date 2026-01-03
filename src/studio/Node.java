@@ -13,7 +13,7 @@ public class Node {
     public float height = 200f;
     public String value = "";
     public Color color = Color.gray;
-    
+
     public Seq<Node> connections = new Seq<>();
     public Seq<NodeInput> inputs = new Seq<>();
 
@@ -33,7 +33,7 @@ public class Node {
 
     public void setupInputs() {
         inputs.clear();
-        
+
         if(label.equals("Message")) {
             inputs.add(new NodeInput("Text", "Hello!"));
         }
@@ -47,11 +47,40 @@ public class Node {
         else if(label.equals("Set Block")) {
             inputs.add(new NodeInput("Position (x,y,blockname)", "10,10,copper-wall"));
         }
-        else if(label.equals("Create Mod Folder")) {
-            inputs.add(new NodeInput("Folder Name", "mymod"));
+        else if(label.equals("Create Mod")) {
+            inputs.add(new NodeInput("Mod Name", "mymod"));
             inputs.add(new NodeInput("Display Name", "My Mod"));
             inputs.add(new NodeInput("Author", "YourName"));
             inputs.add(new NodeInput("Description", "My custom mod"));
+            inputs.add(new NodeInput("Version", "1.0"));
+        }
+        else if(label.equals("Create Block")) {
+            inputs.add(new NodeInput("Block Name", "my-block"));
+            inputs.add(new NodeInput("Display Name", "My Block"));
+            inputs.add(new NodeInput("Block Type", "wall"));
+            inputs.add(new NodeInput("Health", "100"));
+            inputs.add(new NodeInput("Size", "1"));
+        }
+        else if(label.equals("Create Unit")) {
+            inputs.add(new NodeInput("Unit Name", "my-unit"));
+            inputs.add(new NodeInput("Display Name", "My Unit"));
+            inputs.add(new NodeInput("Speed", "1.0"));
+            inputs.add(new NodeInput("Health", "200"));
+            inputs.add(new NodeInput("Flying", "false"));
+        }
+        else if(label.equals("Create Item")) {
+            inputs.add(new NodeInput("Item Name", "my-item"));
+            inputs.add(new NodeInput("Display Name", "My Item"));
+            inputs.add(new NodeInput("Color (hex)", "ff0000"));
+            inputs.add(new NodeInput("Flammability", "0"));
+        }
+        else if(label.equals("Add Sprite")) {
+            inputs.add(new NodeInput("Sprite Name", "my-sprite"));
+            inputs.add(new NodeInput("File Path", "sprites/my-sprite.png"));
+        }
+        else if(label.equals("Create Script")) {
+            inputs.add(new NodeInput("Script Name", "main.js"));
+            inputs.add(new NodeInput("Script Content", "// Your code here"));
         }
         else if(label.equals("Wait")) {
             inputs.add(new NodeInput("Seconds", "1"));
