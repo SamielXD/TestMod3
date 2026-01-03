@@ -175,6 +175,8 @@ public class NodeEditor extends BaseDialog {
             if(i < node.inputs.size - 1) sb.append("|");
         }
         return sb.toString();
+    } // FIXED: Added missing closing brace here!
+
     private void saveScript() {
         BaseDialog dialog = new BaseDialog("Save Script");
         Label label = new Label("Script Name:");
@@ -226,21 +228,21 @@ public class NodeEditor extends BaseDialog {
     private void showLoadDialog() {
         BaseDialog dialog = new BaseDialog("Load Script");
         dialog.cont.defaults().size(500f, 100f).pad(10f);
-        
+
         String loadPath = editorMode.equals("game") ? "mods/studio-scripts/" : "mods/studio-mods/";
         Fi folder = Core.files.local(loadPath);
-        
+
         if(!folder.exists()) {
             folder.mkdirs();
         }
-        
+
         Seq<String> scripts = new Seq<>();
         for(Fi file : folder.list()) {
             if(file.extension().equals("json")) {
                 scripts.add(file.nameWithoutExtension());
             }
         }
-        
+
         if(scripts.size == 0) {
             Label label = new Label("No saved scripts found");
             label.setFontScale(1.5f);
@@ -277,27 +279,27 @@ public class NodeEditor extends BaseDialog {
         try {
             String loadPath = editorMode.equals("game") ? "mods/studio-scripts/" : "mods/studio-mods/";
             Fi file = Core.files.local(loadPath + name + ".json");
-            
+
             if(!file.exists()) {
                 throw new Exception("File not found: " + name);
             }
-            
+
             String json = file.readString();
             Json jsonParser = new Json();
             jsonParser.setIgnoreUnknownFields(true);
-            
+
             Seq nodeDataList = jsonParser.fromJson(Seq.class, json);
-            
+
             if(nodeDataList == null || nodeDataList.size == 0) {
                 throw new Exception("No nodes in file");
             }
-            
+
             canvas.nodes.clear();
             Seq<Node> loadedNodes = new Seq<>();
-            
+
             for(Object obj : nodeDataList) {
                 NodeData data = jsonParser.readValue(NodeData.class, jsonParser.toJson(obj));
-                
+
                 Node node = new Node();
                 node.id = data.id != null ? data.id : java.util.UUID.randomUUID().toString();
                 node.type = data.type != null ? data.type : "action";
@@ -307,21 +309,21 @@ public class NodeEditor extends BaseDialog {
                 node.value = data.value != null ? data.value : "";
                 node.color = data.color != null ? Color.valueOf(data.color) : Color.gray;
                 node.setupInputs();
-                
+
                 if(data.inputValues != null && data.inputValues.size > 0) {
                     for(int i = 0; i < Math.min(node.inputs.size, data.inputValues.size); i++) {
                         node.inputs.get(i).value = data.inputValues.get(i);
                     }
                 }
-                
+
                 loadedNodes.add(node);
             }
-            
+
             for(int i = 0; i < nodeDataList.size; i++) {
                 Object obj = nodeDataList.get(i);
                 NodeData data = jsonParser.readValue(NodeData.class, jsonParser.toJson(obj));
                 Node node = loadedNodes.get(i);
-                
+
                 if(data.connectionIds != null && data.connectionIds.size > 0) {
                     for(String connId : data.connectionIds) {
                         Node target = loadedNodes.find(n -> n.id.equals(connId));
@@ -331,17 +333,19 @@ public class NodeEditor extends BaseDialog {
                     }
                 }
             }
-            
+
             canvas.nodes = loadedNodes;
             currentScriptName = name;
             statusLabel.setText("Loaded: " + name + " (" + canvas.nodes.size + " nodes)");
             Vars.ui.showInfoFade("Loaded " + canvas.nodes.size + " nodes!");
-            
+
         } catch(Exception e) {
             Log.err("Load failed: " + name, e);
             Vars.ui.showInfoFade("Load failed: " + e.getMessage());
             statusLabel.setText("Load FAILED!");
         }
+    } // FIXED: Added missing closing brace here!
+
     private void runScript() {
         try {
             if(editorMode.equals("mod")) {
@@ -385,7 +389,7 @@ public class NodeEditor extends BaseDialog {
             String modName = node.inputs.get(0).value;
             Fi modFolder = Core.files.local("mods/" + modName);
             modFolder.mkdirs();
-            
+
             for(Node child : node.connections) {
                 executeModNode(child, modFolder);
             }
@@ -397,7 +401,6 @@ public class NodeEditor extends BaseDialog {
             String folderName = node.inputs.get(0).value;
             Fi folder = parentFolder.child(folderName);
             folder.mkdirs();
-            
             for(Node child : node.connections) {
                 executeModNode(child, folder);
             }
@@ -406,13 +409,13 @@ public class NodeEditor extends BaseDialog {
             String modName = node.inputs.get(0).value;
             String displayName = node.inputs.get(1).value;
             String author = node.inputs.get(2).value;
-            
+
             String hjson = "name: " + modName + "\n" +
                           "displayName: " + displayName + "\n" +
                           "author: " + author + "\n" +
                           "version: 1.0\n" +
                           "minGameVersion: 154\n";
-            
+
             parentFolder.child("mod.hjson").writeString(hjson);
         }
         else if(node.label.equals("Create Block File")) {
@@ -420,11 +423,11 @@ public class NodeEditor extends BaseDialog {
             String type = node.inputs.get(1).value;
             String health = node.inputs.get(2).value;
             String size = node.inputs.get(3).value;
-            
+
             String hjson = "type: " + type + "\n" +
                           "health: " + health + "\n" +
                           "size: " + size + "\n";
-            
+
             parentFolder.child(blockName + ".hjson").writeString(hjson);
         }
         else if(node.label.equals("Create Unit File")) {
@@ -432,21 +435,21 @@ public class NodeEditor extends BaseDialog {
             String type = node.inputs.get(1).value;
             String health = node.inputs.get(2).value;
             String speed = node.inputs.get(3).value;
-            
+
             String hjson = "type: " + type + "\n" +
                           "health: " + health + "\n" +
                           "speed: " + speed + "\n";
-            
+
             parentFolder.child(unitName + ".hjson").writeString(hjson);
         }
         else if(node.label.equals("Create Item File")) {
             String itemName = node.inputs.get(0).value;
             String color = node.inputs.get(1).value;
             String cost = node.inputs.get(2).value;
-            
+
             String hjson = "color: " + color + "\n" +
                           "cost: " + cost + "\n";
-            
+
             parentFolder.child(itemName + ".hjson").writeString(hjson);
         }
     }
