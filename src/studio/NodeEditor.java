@@ -43,35 +43,70 @@ public class NodeEditor extends BaseDialog {
         main.setFillParent(true);
         
         Table toolbox = new Table(Styles.black6);
-        toolbox.defaults().size(120f, 50f).pad(5f);
+        toolbox.defaults().size(140f, 55f).pad(5f);
         
+        toolbox.add("EVENTS").color(Color.green).row();
         toolbox.button("On Start", () -> canvas.addNode("event", "On Start", Color.green)).row();
         toolbox.button("On Wave", () -> canvas.addNode("event", "On Wave", Color.green)).row();
         toolbox.button("On Unit Spawn", () -> canvas.addNode("event", "On Unit Spawn", Color.green)).row();
         toolbox.row();
         
+        toolbox.add("ACTIONS").color(Color.blue).row();
         toolbox.button("Spawn Unit", () -> canvas.addNode("action", "Spawn Unit", Color.blue)).row();
         toolbox.button("Message", () -> canvas.addNode("action", "Message", Color.blue)).row();
         toolbox.button("Set Block", () -> canvas.addNode("action", "Set Block", Color.blue)).row();
         toolbox.row();
         
+        toolbox.add("CONDITIONS").color(Color.orange).row();
         toolbox.button("If", () -> canvas.addNode("condition", "If", Color.orange)).row();
         toolbox.button("Wait", () -> canvas.addNode("condition", "Wait", Color.orange)).row();
         toolbox.row();
         
+        toolbox.add("VALUES").color(Color.purple).row();
         toolbox.button("Number", () -> canvas.addNode("value", "Number", Color.purple)).row();
         toolbox.button("Text", () -> canvas.addNode("value", "Text", Color.purple)).row();
         toolbox.button("Unit Type", () -> canvas.addNode("value", "Unit Type", Color.purple)).row();
         
-        main.add(toolbox).fillY().width(150f);
+        main.add(toolbox).fillY().width(160f);
         main.add(canvas).grow();
         
         Table modes = new Table();
-        modes.defaults().size(80f, 50f).pad(5f);
-        modes.button("Move", () -> canvas.mode = "move");
-        modes.button("Edit", () -> canvas.mode = "edit");
-        modes.button("Connect", () -> canvas.mode = "connect");
-        modes.button("Delete", () -> canvas.mode = "delete");
+        modes.defaults().size(100f, 55f).pad(5f);
+        
+        TextButton moveBtn = modes.button("Move", () -> canvas.mode = "move").get();
+        TextButton editBtn = modes.button("Edit", () -> canvas.mode = "edit").get();
+        TextButton connectBtn = modes.button("Connect", () -> canvas.mode = "connect").get();
+        TextButton deleteBtn = modes.button("Delete", () -> canvas.mode = "delete").get();
+        
+        moveBtn.clicked(() -> {
+            moveBtn.setChecked(true);
+            editBtn.setChecked(false);
+            connectBtn.setChecked(false);
+            deleteBtn.setChecked(false);
+        });
+        
+        editBtn.clicked(() -> {
+            moveBtn.setChecked(false);
+            editBtn.setChecked(true);
+            connectBtn.setChecked(false);
+            deleteBtn.setChecked(false);
+        });
+        
+        connectBtn.clicked(() -> {
+            moveBtn.setChecked(false);
+            editBtn.setChecked(false);
+            connectBtn.setChecked(true);
+            deleteBtn.setChecked(false);
+        });
+        
+        deleteBtn.clicked(() -> {
+            moveBtn.setChecked(false);
+            editBtn.setChecked(false);
+            connectBtn.setChecked(false);
+            deleteBtn.setChecked(true);
+        });
+        
+        moveBtn.setChecked(true);
         
         statusLabel = new Label("");
         modes.add(statusLabel).growX().padLeft(20f);
@@ -87,21 +122,52 @@ public class NodeEditor extends BaseDialog {
         main.setFillParent(true);
         
         Table topBar = new Table(Styles.black6);
-        topBar.defaults().size(60f, 45f).pad(2f);
+        topBar.defaults().size(80f, 60f).pad(3f);
         
-        topBar.button("Move", () -> canvas.mode = "move").row();
-        topBar.button("Edit", () -> canvas.mode = "edit").row();
-        topBar.button("Link", () -> canvas.mode = "connect").row();
-        topBar.button("Del", () -> canvas.mode = "delete").row();
-        topBar.button("+Node", () -> showAddNodeDialog()).row();
-        topBar.button("Z-", () -> canvas.zoom = arc.math.Mathf.clamp(canvas.zoom - 0.2f, 0.2f, 3f)).row();
-        topBar.button("Z+", () -> canvas.zoom = arc.math.Mathf.clamp(canvas.zoom + 0.2f, 0.2f, 3f)).row();
+        TextButton moveBtn = topBar.button("Move", () -> canvas.mode = "move").get();
+        TextButton editBtn = topBar.button("Edit", () -> canvas.mode = "edit").get();
+        TextButton linkBtn = topBar.button("Link", () -> canvas.mode = "connect").get();
+        TextButton delBtn = topBar.button("Del", () -> canvas.mode = "delete").get();
+        topBar.button("Add\nNode", () -> showAddNodeDialog());
+        topBar.row();
+        topBar.button("Zoom\n-", () -> canvas.zoom = arc.math.Mathf.clamp(canvas.zoom - 0.3f, 0.2f, 3f));
+        topBar.button("Zoom\n+", () -> canvas.zoom = arc.math.Mathf.clamp(canvas.zoom + 0.3f, 0.2f, 3f));
         
-        main.add(topBar).fillY().left();
+        moveBtn.clicked(() -> {
+            moveBtn.setChecked(true);
+            editBtn.setChecked(false);
+            linkBtn.setChecked(false);
+            delBtn.setChecked(false);
+        });
+        
+        editBtn.clicked(() -> {
+            moveBtn.setChecked(false);
+            editBtn.setChecked(true);
+            linkBtn.setChecked(false);
+            delBtn.setChecked(false);
+        });
+        
+        linkBtn.clicked(() -> {
+            moveBtn.setChecked(false);
+            editBtn.setChecked(false);
+            linkBtn.setChecked(true);
+            delBtn.setChecked(false);
+        });
+        
+        delBtn.clicked(() -> {
+            moveBtn.setChecked(false);
+            editBtn.setChecked(false);
+            linkBtn.setChecked(false);
+            delBtn.setChecked(true);
+        });
+        
+        moveBtn.setChecked(true);
+        
+        main.add(topBar).fillX().row();
         main.add(canvas).grow().row();
         
         statusLabel = new Label("");
-        main.add(statusLabel).colspan(2).fillX().pad(5f);
+        main.add(statusLabel).fillX().pad(5f);
         
         cont.add(main).grow();
     }
