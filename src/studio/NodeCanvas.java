@@ -15,34 +15,34 @@ import mindustry.ui.*;
 public class NodeCanvas extends Element {
     public Seq<Node> nodes = new Seq<>();
     public Vec2 offset = new Vec2(0, 0);
-    public float zoom = 1f;
-    
+    public float zoom = 0.5f;
+
     public String mode = "move";
-    
+
     private Node dragNode = null;
     private Vec2 dragStart = new Vec2();
     private Vec2 panStart = new Vec2();
     private boolean panning = false;
-    
+
     private Node connectStart = null;
-    
+
     public Runnable onNodeEdit;
     public Node selectedNode = null;
-    
+
     public NodeCanvas() {
         setFillParent(true);
-        
+
         addListener(new InputListener() {
             @Override
             public boolean touchDown(InputEvent event, float x, float y, int pointer, KeyCode button) {
                 Vec2 worldPos = screenToWorld(x, y);
-                
+
                 if(Core.input.keyDown(KeyCode.mouseRight) || pointer == 1) {
                     panning = true;
                     panStart.set(x, y);
                     return true;
                 }
-                
+
                 if(mode.equals("move")) {
                     for(Node node : nodes) {
                         if(node.contains(worldPos.x, worldPos.y)) {
@@ -52,7 +52,7 @@ public class NodeCanvas extends Element {
                         }
                     }
                 }
-                
+
                 if(mode.equals("edit")) {
                     for(Node node : nodes) {
                         if(node.contains(worldPos.x, worldPos.y)) {
@@ -64,7 +64,7 @@ public class NodeCanvas extends Element {
                         }
                     }
                 }
-                
+
                 if(mode.equals("connect")) {
                     for(Node node : nodes) {
                         if(node.contains(worldPos.x, worldPos.y)) {
@@ -81,7 +81,7 @@ public class NodeCanvas extends Element {
                     }
                     connectStart = null;
                 }
-                
+
                 if(mode.equals("delete")) {
                     for(Node node : nodes) {
                         if(node.contains(worldPos.x, worldPos.y)) {
@@ -93,10 +93,10 @@ public class NodeCanvas extends Element {
                         }
                     }
                 }
-                
+
                 return true;
             }
-            
+
             @Override
             public void touchDragged(InputEvent event, float x, float y, int pointer) {
                 if(panning) {
@@ -105,61 +105,63 @@ public class NodeCanvas extends Element {
                     panStart.set(x, y);
                     return;
                 }
-                
+
                 if(dragNode != null && mode.equals("move")) {
                     Vec2 worldPos = screenToWorld(x, y);
                     dragNode.x = worldPos.x - dragStart.x;
                     dragNode.y = worldPos.y - dragStart.y;
                 }
             }
-            
+
             @Override
             public void touchUp(InputEvent event, float x, float y, int pointer, KeyCode button) {
                 dragNode = null;
                 panning = false;
             }
-            
+
             @Override
             public boolean scrolled(InputEvent event, float x, float y, float amountX, float amountY) {
                 Vec2 worldPosBefore = screenToWorld(x, y);
-                
+
                 zoom = arc.math.Mathf.clamp(zoom - amountY * 0.15f, 0.2f, 3f);
-                
+
                 Vec2 worldPosAfter = screenToWorld(x, y);
                 offset.add(worldPosBefore).sub(worldPosAfter);
-                
+
                 return true;
             }
         });
     }
-    
+
     public Vec2 screenToWorld(float x, float y) {
         return new Vec2(
             (x - width/2f) / zoom - offset.x,
             (y - height/2f) / zoom - offset.y
         );
     }
-    
+
     public Vec2 worldToScreen(float x, float y) {
         return new Vec2(
             (x + offset.x) * zoom + width/2f,
             (y + offset.y) * zoom + height/2f
         );
     }
-    
+
     public void addNode(String type, String label, Color color) {
         Node node = new Node(type, label, -offset.x, -offset.y, color);
+        node.width = 400f;
+        node.height = 200f;
         nodes.add(node);
     }
-    
+
     @Override
     public void draw() {
         validate();
-        
+
         Draw.color(0.2f, 0.2f, 0.25f, 1f);
         Fill.rect(x + width/2f, y + height/2f, width, height);
-        
-        Lines.stroke(1f);
+
+        Lines.stroke(3f);
         Draw.color(0.3f, 0.3f, 0.35f, 1f);
         for(float gx = -2000f; gx < 2000f; gx += 50f) {
             Vec2 start = worldToScreen(gx, -2000f);
@@ -175,57 +177,57 @@ public class NodeCanvas extends Element {
                 Lines.line(x, start.y, x + width, start.y);
             }
         }
-        
+
         for(Node node : nodes) {
             for(Node target : node.connections) {
                 Vec2 start = worldToScreen(node.getOutputPoint().x, node.getOutputPoint().y);
                 Vec2 end = worldToScreen(target.getInputPoint().x, target.getInputPoint().y);
-                
+
                 Draw.color(Color.white);
-                Lines.stroke(3f);
+                Lines.stroke(8f);
                 Lines.line(start.x, start.y, end.x, end.y);
             }
         }
-        
+
         for(Node node : nodes) {
             Vec2 screenPos = worldToScreen(node.x, node.y);
             float screenWidth = node.width * zoom;
             float screenHeight = node.height * zoom;
-            
+
             Draw.color(node.color);
-            Fill.crect(screenPos.x, screenPos.y, screenWidth, screenHeight);
-            
+            Fill.rect(screenPos.x, screenPos.y, screenWidth, screenHeight);
+
             Draw.color(Color.white);
-            Lines.stroke(2f);
+            Lines.stroke(6f);
             Lines.rect(screenPos.x, screenPos.y, screenWidth, screenHeight);
-            
-            Fonts.outline.getData().setScale(0.5f * zoom);
-            Fonts.outline.draw(node.label, screenPos.x + 10f * zoom, screenPos.y + screenHeight - 15f * zoom);
-            
+
+            Fonts.outline.getData().setScale(1.2f * zoom);
+            Fonts.outline.draw(node.label, screenPos.x + 20f * zoom, screenPos.y + screenHeight - 30f * zoom);
+
             if(!node.value.isEmpty()) {
-                Fonts.outline.getData().setScale(0.35f * zoom);
+                Fonts.outline.getData().setScale(0.9f * zoom);
                 String displayValue = node.value.length() > 15 ? node.value.substring(0, 15) + "..." : node.value;
-                Fonts.outline.draw(displayValue, screenPos.x + 10f * zoom, screenPos.y + 20f * zoom);
+                Fonts.outline.draw(displayValue, screenPos.x + 20f * zoom, screenPos.y + 50f * zoom);
             }
-            
+
             Fonts.outline.getData().setScale(1f);
-            
+
             Vec2 inputScreen = worldToScreen(node.getInputPoint().x, node.getInputPoint().y);
             Draw.color(Color.green);
-            Fill.circle(inputScreen.x, inputScreen.y, 6f * zoom);
-            
+            Fill.circle(inputScreen.x, inputScreen.y, 20f * zoom);
+
             Vec2 outputScreen = worldToScreen(node.getOutputPoint().x, node.getOutputPoint().y);
             Draw.color(Color.red);
-            Fill.circle(outputScreen.x, outputScreen.y, 6f * zoom);
+            Fill.circle(outputScreen.x, outputScreen.y, 20f * zoom);
         }
-        
+
         if(connectStart != null) {
             Vec2 start = worldToScreen(connectStart.getOutputPoint().x, connectStart.getOutputPoint().y);
             Draw.color(Color.yellow);
-            Lines.stroke(3f);
-            Lines.circle(start.x, start.y, 15f);
+            Lines.stroke(8f);
+            Lines.circle(start.x, start.y, 30f);
         }
-        
+
         Draw.reset();
     }
 }
