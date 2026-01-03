@@ -67,11 +67,11 @@ public class NodeEditor extends BaseDialog {
 
         ScrollPane scrollPane = new ScrollPane(buttonTable);
         scrollPane.setScrollingDisabled(false, true);
-        
+
         if(uiLayout.equals("top")) {
             main.getChildren().reverse();
         }
-        
+
         main.add(scrollPane).growX().height(90f).row();
         main.add(statusLabel).fillX().pad(10f);
 
@@ -104,7 +104,7 @@ public class NodeEditor extends BaseDialog {
 
     private void showNodeBrowser() {
         BaseDialog dialog = new BaseDialog("Node Browser");
-        
+
         Table content = new Table();
         content.defaults().size(450f, 100f).pad(8f);
 
@@ -484,7 +484,6 @@ public class NodeEditor extends BaseDialog {
                     }
                 }
             }
-
             canvas.nodes = loadedNodes;
             currentScriptName = name;
             statusLabel.setText("Loaded: " + name + " (" + canvas.nodes.size + " nodes)");
