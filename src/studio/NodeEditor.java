@@ -16,7 +16,6 @@ public class NodeEditor extends BaseDialog {
     private NodeCanvas canvas;
     private String currentScriptName = "Untitled";
     private Label statusLabel;
-    private Label modeLabel;
 
     public NodeEditor() {
         super("Studio - Node Editor");
@@ -31,68 +30,45 @@ public class NodeEditor extends BaseDialog {
         Table main = new Table();
         main.setFillParent(true);
 
-        Table topBar = new Table(Styles.black6);
-        
-        ScrollPane topScroll = new ScrollPane(topBar);
-        topScroll.setScrollingDisabled(false, true);
-        
-        topBar.defaults().size(200f, 100f).pad(5f);
-        
-        topBar.button("MOVE", Icon.move, () -> {
-            canvas.mode = "move";
-            updateModeLabel();
-        });
-        topBar.button("EDIT", Icon.edit, () -> {
-            canvas.mode = "edit";
-            updateModeLabel();
-        });
-        topBar.button("LINK", Icon.link, () -> {
-            canvas.mode = "connect";
-            updateModeLabel();
-        });
-        topBar.button("DELETE", Icon.trash, () -> {
-            canvas.mode = "delete";
-            updateModeLabel();
-        });
-        topBar.button("ADD NODE", Icon.add, () -> showAddNodeDialog());
-        topBar.button("ZOOM -", Icon.zoom, () -> {
-            canvas.zoom = arc.math.Mathf.clamp(canvas.zoom - 0.2f, 0.2f, 3f);
-        });
-        topBar.button("ZOOM +", Icon.zoom, () -> {
-            canvas.zoom = arc.math.Mathf.clamp(canvas.zoom + 0.2f, 0.2f, 3f);
-        });
-
-        main.add(topScroll).fillX().height(120f).row();
-
-        modeLabel = new Label("MODE: MOVE");
-        modeLabel.setFontScale(2f);
-        main.add(modeLabel).fillX().pad(10f).row();
-
         main.add(canvas).grow().row();
 
         statusLabel = new Label("");
         statusLabel.setFontScale(1.5f);
-        main.add(statusLabel).fillX().pad(10f).row();
-
-        Table bottomBar = new Table(Styles.black6);
-        
-        ScrollPane bottomScroll = new ScrollPane(bottomBar);
-        bottomScroll.setScrollingDisabled(false, true);
-        
-        bottomBar.defaults().size(200f, 100f).pad(5f);
-        
-        bottomBar.button("CLOSE", Icon.left, () -> hide());
-        bottomBar.button("SAVE", Icon.save, () -> saveScript());
-        bottomBar.button("LOAD", Icon.download, () -> showLoadDialog());
-        bottomBar.button("RUN", Icon.play, () -> runScript());
-
-        main.add(bottomScroll).fillX().height(120f);
+        main.add(statusLabel).fillX().pad(10f);
 
         cont.add(main).grow();
     }
 
-    private void updateModeLabel() {
-        modeLabel.setText("MODE: " + canvas.mode.toUpperCase());
+    @Override
+    public void addCloseButton() {
+        buttons.button("CLOSE", Icon.left, () -> hide()).size(150f, 100f);
+        buttons.button("MOVE", Icon.move, () -> {
+            canvas.mode = "move";
+            statusLabel.setText("MODE: MOVE");
+        }).size(150f, 100f);
+        buttons.button("EDIT", Icon.edit, () -> {
+            canvas.mode = "edit";
+            statusLabel.setText("MODE: EDIT");
+        }).size(150f, 100f);
+        buttons.button("LINK", Icon.link, () -> {
+            canvas.mode = "connect";
+            statusLabel.setText("MODE: LINK");
+        }).size(150f, 100f);
+        buttons.button("DELETE", Icon.trash, () -> {
+            canvas.mode = "delete";
+            statusLabel.setText("MODE: DELETE");
+        }).size(150f, 100f);
+        buttons.row();
+        buttons.button("ADD NODE", Icon.add, () -> showAddNodeDialog()).size(150f, 100f);
+        buttons.button("ZOOM -", Icon.zoom, () -> {
+            canvas.zoom = arc.math.Mathf.clamp(canvas.zoom - 0.2f, 0.2f, 3f);
+        }).size(150f, 100f);
+        buttons.button("ZOOM +", Icon.zoom, () -> {
+            canvas.zoom = arc.math.Mathf.clamp(canvas.zoom + 0.2f, 0.2f, 3f);
+        }).size(150f, 100f);
+        buttons.button("SAVE", Icon.save, () -> saveScript()).size(150f, 100f);
+        buttons.button("LOAD", Icon.download, () -> showLoadDialog()).size(150f, 100f);
+        buttons.button("RUN", Icon.play, () -> runScript()).size(150f, 100f);
     }
 
     private void showAddNodeDialog() {
