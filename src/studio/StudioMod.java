@@ -5,7 +5,6 @@ import arc.files.*;
 import arc.scene.ui.*;
 import arc.struct.*;
 import arc.util.*;
-import arc.util.serialization.*;
 import mindustry.*;
 import mindustry.content.*;
 import mindustry.game.EventType.*;
