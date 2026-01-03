@@ -24,31 +24,38 @@ public class NodeEditor extends BaseDialog {
         canvas.onNodeEdit = () -> showEditDialog(canvas.selectedNode);
 
         buildUI();
-        
-        addCloseButton();
 
-        buttons.button("Save", Icon.save, this::saveScript).size(150f, 80f);
-        buttons.button("Load", Icon.download, this::showLoadDialog).size(150f, 80f);
-        buttons.button("Run", Icon.play, this::runScript).size(150f, 80f);
-        buttons.button("Move", Icon.move, () -> {
+        // FIXED: Wrap buttons in ScrollPane for horizontal scrolling
+        Table buttonTable = new Table();
+        buttonTable.defaults().size(150f, 80f);
+        
+        buttonTable.button("Close", Icon.left, () -> hide());
+        buttonTable.button("Save", Icon.save, this::saveScript);
+        buttonTable.button("Load", Icon.download, this::showLoadDialog);
+        buttonTable.button("Run", Icon.play, this::runScript);
+        buttonTable.button("Move", Icon.move, () -> {
             canvas.mode = "move";
             statusLabel.setText("MODE: MOVE");
-        }).size(150f, 80f);
-        buttons.button("Edit", Icon.edit, () -> {
+        });
+        buttonTable.button("Edit", Icon.edit, () -> {
             canvas.mode = "edit";
             statusLabel.setText("MODE: EDIT");
-        }).size(150f, 80f);
-        buttons.button("Link", Icon.link, () -> {
+        });
+        buttonTable.button("Link", Icon.link, () -> {
             canvas.mode = "connect";
             statusLabel.setText("MODE: LINK");
-        }).size(150f, 80f);
-        buttons.button("Delete", Icon.trash, () -> {
+        });
+        buttonTable.button("Delete", Icon.trash, () -> {
             canvas.mode = "delete";
             statusLabel.setText("MODE: DELETE");
-        }).size(150f, 80f);
-        buttons.button("Add", Icon.add, this::showAddNodeDialog).size(150f, 80f);
-        buttons.button("Z-", Icon.zoom, () -> canvas.zoom = arc.math.Mathf.clamp(canvas.zoom - 0.2f, 0.2f, 3f)).size(150f, 80f);
-        buttons.button("Z+", Icon.zoom, () -> canvas.zoom = arc.math.Mathf.clamp(canvas.zoom + 0.2f, 0.2f, 3f)).size(150f, 80f);
+        });
+        buttonTable.button("Add", Icon.add, this::showAddNodeDialog);
+        buttonTable.button("Z-", Icon.zoom, () -> canvas.zoom = arc.math.Mathf.clamp(canvas.zoom - 0.2f, 0.2f, 3f));
+        buttonTable.button("Z+", Icon.zoom, () -> canvas.zoom = arc.math.Mathf.clamp(canvas.zoom + 0.2f, 0.2f, 3f));
+
+        ScrollPane scrollPane = new ScrollPane(buttonTable);
+        scrollPane.setScrollingDisabled(false, true); // Only horizontal scroll
+        buttons.add(scrollPane).growX().height(80f);
     }
 
     private void buildUI() {
@@ -161,7 +168,7 @@ public class NodeEditor extends BaseDialog {
 
     private void saveScript() {
         BaseDialog dialog = new BaseDialog("Save Script");
-        
+
         Label label = new Label("Script Name:");
         label.setFontScale(1.5f);
         dialog.cont.add(label).row();
@@ -175,11 +182,6 @@ public class NodeEditor extends BaseDialog {
             currentScriptName = nameField.getText();
 
             try {
-                StudioMod.Script script = new StudioMod.Script();
-                script.name = currentScriptName;
-                script.enabled = true;
-                script.nodes = canvas.nodes;
-
                 Seq<NodeData> nodeDataList = new Seq<>();
                 for(Node node : canvas.nodes) {
                     NodeData data = new NodeData();
@@ -200,7 +202,6 @@ public class NodeEditor extends BaseDialog {
                 }
 
                 String json = new Json().toJson(nodeDataList);
-
                 Core.files.local("mods/studio-scripts/" + currentScriptName + ".json").writeString(json);
 
                 statusLabel.setText("Saved: " + currentScriptName);
@@ -247,7 +248,7 @@ public class NodeEditor extends BaseDialog {
     private void loadScript(String name) {
         try {
             String json = Core.files.local("mods/studio-scripts/" + name + ".json").readString();
-            Seq<NodeData> nodeDataList = new Json().fromJson(Seq.class, json);
+            Seq<NodeData> nodeDataList = new Json().fromJson(Seq.class, NodeData.class, json);
 
             canvas.nodes.clear();
             Seq<Node> loadedNodes = new Seq<>();
@@ -304,7 +305,8 @@ public class NodeEditor extends BaseDialog {
             for(Node node : canvas.nodes) {
                 if(node.type.equals("event")) {
                     hasEventNode = true;
-                    StudioMod.executeNode(node, script);
+                    // FIXED: Manually trigger execution for testing
+                    StudioMod.executeNodeChain(node, script);
                 }
             }
 
@@ -316,6 +318,7 @@ public class NodeEditor extends BaseDialog {
 
         } catch(Exception e) {
             Log.err("Run failed", e);
+            Vars.ui.showInfoFade("Error: " + e.getMessage());
         }
     }
 
