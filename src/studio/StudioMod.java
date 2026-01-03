@@ -2,8 +2,12 @@ package studio;
 
 import arc.*;
 import arc.files.*;
+import arc.graphics.*;
+import arc.scene.ui.*;
+import arc.scene.ui.layout.*;
 import arc.struct.*;
 import arc.util.*;
+import arc.util.serialization.*;
 import mindustry.*;
 import mindustry.content.*;
 import mindustry.game.EventType.*;
@@ -11,6 +15,8 @@ import mindustry.gen.*;
 import mindustry.mod.*;
 import mindustry.type.*;
 import mindustry.world.*;
+import mindustry.ui.*;
+import mindustry.ui.dialogs.*;
 
 public class StudioMod extends Mod {
     public static Seq<Script> loadedScripts = new Seq<>();
