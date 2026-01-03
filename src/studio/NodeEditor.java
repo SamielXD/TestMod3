@@ -23,13 +23,7 @@ public class NodeEditor extends BaseDialog {
         canvas = new NodeCanvas();
         canvas.onNodeEdit = () -> showEditDialog(canvas.selectedNode);
 
-        boolean isPortrait = Core.graphics.getHeight() > Core.graphics.getWidth();
-
-        if(isPortrait) {
-            buildMobilePortrait();
-        } else {
-            buildMobileLandscape();
-        }
+        buildUI();
 
         addCloseButton();
 
@@ -38,63 +32,15 @@ public class NodeEditor extends BaseDialog {
         buttons.button("Run", Icon.play, this::runScript).size(200f, 100f);
     }
 
-    private void buildMobilePortrait() {
+    private void buildUI() {
         Table main = new Table();
         main.setFillParent(true);
 
-        Table topBar = new Table(Styles.black6);
-        topBar.defaults().size(180f, 120f).pad(8f);
-
-        TextButton moveBtn = topBar.button("MOVE", () -> canvas.mode = "move").get();
-        TextButton editBtn = topBar.button("EDIT", () -> canvas.mode = "edit").get();
-        topBar.row();
-        TextButton linkBtn = topBar.button("LINK", () -> canvas.mode = "connect").get();
-        TextButton delBtn = topBar.button("DELETE", () -> canvas.mode = "delete").get();
-        topBar.row();
-        topBar.button("ADD NODE", () -> showAddNodeDialog()).width(370f).height(120f).colspan(2).row();
-        topBar.button("ZOOM -", () -> canvas.zoom = arc.math.Mathf.clamp(canvas.zoom - 0.2f, 0.2f, 3f)).width(180f);
-        topBar.button("ZOOM +", () -> canvas.zoom = arc.math.Mathf.clamp(canvas.zoom + 0.2f, 0.2f, 3f)).width(180f);
-
-        setupModeButtons(moveBtn, editBtn, linkBtn, delBtn);
-
-        main.add(topBar).fillX().row();
         main.add(canvas).grow().row();
 
         statusLabel = new Label("");
         statusLabel.setFontScale(1.5f);
         main.add(statusLabel).fillX().pad(10f);
-
-        cont.add(main).grow();
-    }
-
-    private void buildMobileLandscape() {
-        Table main = new Table();
-        main.setFillParent(true);
-
-        Table leftBar = new Table(Styles.black6);
-        leftBar.defaults().size(180f, 100f).pad(8f);
-
-        TextButton moveBtn = leftBar.button("MOVE", () -> canvas.mode = "move").get();
-        leftBar.row();
-        TextButton editBtn = leftBar.button("EDIT", () -> canvas.mode = "edit").get();
-        leftBar.row();
-        TextButton linkBtn = leftBar.button("LINK", () -> canvas.mode = "connect").get();
-        leftBar.row();
-        TextButton delBtn = leftBar.button("DELETE", () -> canvas.mode = "delete").get();
-        leftBar.row();
-        leftBar.button("ADD NODE", () -> showAddNodeDialog()).height(120f).row();
-        leftBar.button("ZOOM -", () -> canvas.zoom = arc.math.Mathf.clamp(canvas.zoom - 0.2f, 0.2f, 3f)).row();
-        leftBar.button("ZOOM +", () -> canvas.zoom = arc.math.Mathf.clamp(canvas.zoom + 0.2f, 0.2f, 3f)).row();
-
-        setupModeButtons(moveBtn, editBtn, linkBtn, delBtn);
-
-        main.add(leftBar).fillY().left();
-        main.add(canvas).grow();
-
-        statusLabel = new Label("");
-        statusLabel.setFontScale(1.5f);
-        main.row();
-        main.add(statusLabel).colspan(2).fillX().pad(10f);
 
         cont.add(main).grow();
     }
@@ -384,6 +330,65 @@ public class NodeEditor extends BaseDialog {
         } catch(Exception e) {
             Log.err("Run failed", e);
         }
+    }
+
+    @Override
+    public void addCloseButton() {
+        buttons.button("@close", Icon.left, () -> {
+            hide();
+        }).size(200f, 100f);
+
+        buttons.button("MODES", Icon.menu, () -> {
+            showModesDialog();
+        }).size(200f, 100f);
+
+        buttons.button("ADD NODE", Icon.add, () -> {
+            showAddNodeDialog();
+        }).size(200f, 100f);
+
+        buttons.button("ZOOM -", Icon.zoom, () -> {
+            canvas.zoom = arc.math.Mathf.clamp(canvas.zoom - 0.2f, 0.2f, 3f);
+        }).size(200f, 100f);
+
+        buttons.button("ZOOM +", Icon.zoom, () -> {
+            canvas.zoom = arc.math.Mathf.clamp(canvas.zoom + 0.2f, 0.2f, 3f);
+        }).size(200f, 100f);
+    }
+
+    private void showModesDialog() {
+        BaseDialog dialog = new BaseDialog("SELECT MODE");
+        dialog.cont.defaults().size(400f, 120f).pad(10f);
+
+        TextButton moveBtn = dialog.cont.button("MOVE MODE", () -> {
+            canvas.mode = "move";
+            dialog.hide();
+        }).get();
+        dialog.cont.row();
+
+        TextButton editBtn = dialog.cont.button("EDIT MODE", () -> {
+            canvas.mode = "edit";
+            dialog.hide();
+        }).get();
+        dialog.cont.row();
+
+        TextButton linkBtn = dialog.cont.button("LINK MODE", () -> {
+            canvas.mode = "connect";
+            dialog.hide();
+        }).get();
+        dialog.cont.row();
+
+        TextButton delBtn = dialog.cont.button("DELETE MODE", () -> {
+            canvas.mode = "delete";
+            dialog.hide();
+        }).get();
+
+        if(canvas.mode.equals("move")) moveBtn.setChecked(true);
+        if(canvas.mode.equals("edit")) editBtn.setChecked(true);
+        if(canvas.mode.equals("connect")) linkBtn.setChecked(true);
+        if(canvas.mode.equals("delete")) delBtn.setChecked(true);
+
+        dialog.addCloseButton();
+        dialog.show();
     }
 
     public static class NodeData {
