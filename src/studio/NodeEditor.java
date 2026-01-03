@@ -301,6 +301,8 @@ public class NodeEditor extends BaseDialog {
             Vars.ui.showInfoFade("Load failed: " + e.getMessage());
             statusLabel.setText("Load FAILED!");
         }
+    }
+    
     private void runScript() {
         try {
             boolean hasEventNode = false;
