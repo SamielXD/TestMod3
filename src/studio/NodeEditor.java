@@ -177,6 +177,8 @@ public class NodeEditor extends BaseDialog {
         }
         dialog.buttons.button("DONE", dialog::hide).size(300f, 100f);
         dialog.show();
+    }
+    
     private void saveScript() {
         BaseDialog dialog = new BaseDialog("Save Script");
         Label label = new Label("Script Name:");
