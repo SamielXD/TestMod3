@@ -42,6 +42,7 @@ public class NodeEditor extends BaseDialog {
         buttonTable.defaults().size(150f, 80f).pad(4f);
 
         buttonTable.button("Close", Icon.left, this::hide);
+        buttonTable.button("Mod", Icon.box, this::showModSelector);
         buttonTable.button("Mode", Icon.menu, this::showModeSelector);
         buttonTable.button("Save", Icon.save, this::saveScript);
         buttonTable.button("Load", Icon.download, this::showLoadDialog);
@@ -136,6 +137,42 @@ public class NodeEditor extends BaseDialog {
         dialog.show();
     }
 
+    private void showModSelector() {
+        BaseDialog dialog = new BaseDialog("Select Mod to Edit");
+        dialog.cont.defaults().size(500f, 100f).pad(10f);
+
+        Seq<Fi> mods = new Seq<>();
+        Fi modsFolder = StudioMod.modsRootFolder;
+        for(Fi folder : modsFolder.list()) {
+            if(folder.isDirectory() && (folder.child("mod.hjson").exists() || folder.child("mod.json").exists())) {
+                mods.add(folder);
+            }
+        }
+
+        Label info = new Label("[lightgray]Current: " + StudioMod.currentModName);
+        info.setFontScale(1.3f);
+        dialog.cont.add(info).padBottom(20f).row();
+
+        if(mods.size == 0) {
+            Label label = new Label("[lightgray]No mods found\nCreate one first!");
+            label.setFontScale(1.3f);
+            dialog.cont.add(label).row();
+        } else {
+            for(Fi modFolder : mods) {
+                String modName = modFolder.name();
+                dialog.cont.button("[cyan]" + modName, () -> {
+                    StudioMod.currentModName = modName;
+                    Vars.ui.showInfoFade("Selected: " + modName);
+                    updateStatusLabel();
+                    dialog.hide();
+                }).row();
+            }
+        }
+
+        dialog.addCloseButton();
+        dialog.show();
+    }
+
     private void showNodeBrowser() {
         BaseDialog dialog = new BaseDialog("Node Browser");
 
@@ -193,6 +230,36 @@ public class NodeEditor extends BaseDialog {
             }).row();
             content.button("UNIT TYPE", () -> {
                 canvas.addNode("value", "Unit Type", Color.purple);
+                dialog.hide();
+            }).row();
+
+            content.add("[yellow]═══ LOGIC ═══").padTop(20f).row();
+            content.button("SET VARIABLE", () -> {
+                canvas.addNode("logic", "Set Variable", Color.yellow);
+                dialog.hide();
+            }).row();
+            content.button("GET VARIABLE", () -> {
+                canvas.addNode("logic", "Get Variable", Color.yellow);
+                dialog.hide();
+            }).row();
+            content.button("MATH OPERATION", () -> {
+                canvas.addNode("logic", "Math Operation", Color.gold);
+                dialog.hide();
+            }).row();
+            content.button("COMPARE", () -> {
+                canvas.addNode("logic", "Compare", Color.gold);
+                dialog.hide();
+            }).row();
+            content.button("LOOP", () -> {
+                canvas.addNode("logic", "Loop", Color.orange);
+                dialog.hide();
+            }).row();
+            content.button("RANDOM NUMBER", () -> {
+                canvas.addNode("logic", "Random Number", Color.yellow);
+                dialog.hide();
+            }).row();
+            content.button("LOG MESSAGE", () -> {
+                canvas.addNode("logic", "Log Message", Color.lightGray);
                 dialog.hide();
             }).row();
         } else {
@@ -275,361 +342,6 @@ public class NodeEditor extends BaseDialog {
         }
 
         dialog.show();
-    }private void showSpawnUnitDialog(BaseDialog dialog, Node node) {
-        Label unitLabel = new Label("Unit Type:");
-        unitLabel.setFontScale(1.5f);
-        dialog.cont.add(unitLabel).left().row();
-
-        TextField unitField = new TextField(node.inputs.get(0).value);
-        unitField.setStyle(new TextField.TextFieldStyle(unitField.getStyle()));
-        unitField.getStyle().font.getData().setScale(1.5f);
-        dialog.cont.add(unitField).fillX().height(100f).row();
-
-        Label locationLabel = new Label("Spawn Location:");
-        locationLabel.setFontScale(1.5f);
-        dialog.cont.add(locationLabel).left().row();
-
-        Table locationButtons = new Table();
-        locationButtons.defaults().size(180f, 80f).pad(5f);
-
-        final String[] selectedLocation = {node.inputs.get(1).value};
-
-        TextButton coreBtn = new TextButton("At Core", Styles.togglet);
-        coreBtn.setChecked(selectedLocation[0].equals("core"));
-        coreBtn.clicked(() -> selectedLocation[0] = "core");
-        locationButtons.add(coreBtn);
-
-        TextButton coordBtn = new TextButton("At Coordinates", Styles.togglet);
-        coordBtn.setChecked(selectedLocation[0].equals("coordinates"));
-        coordBtn.clicked(() -> selectedLocation[0] = "coordinates");
-        locationButtons.add(coordBtn);
-
-        TextButton playerBtn = new TextButton("At Player", Styles.togglet);
-        playerBtn.setChecked(selectedLocation[0].equals("player"));
-        playerBtn.clicked(() -> selectedLocation[0] = "player");
-        locationButtons.add(playerBtn);
-
-        dialog.cont.add(locationButtons).row();
-
-        Label xLabel = new Label("X Coordinate:");
-        xLabel.setFontScale(1.5f);
-        dialog.cont.add(xLabel).left().row();
-
-        TextField xField = new TextField(node.inputs.get(2).value);
-        xField.setStyle(new TextField.TextFieldStyle(xField.getStyle()));
-        xField.getStyle().font.getData().setScale(1.5f);
-        dialog.cont.add(xField).fillX().height(100f).row();
-
-        Label yLabel = new Label("Y Coordinate:");
-        yLabel.setFontScale(1.5f);
-        dialog.cont.add(yLabel).left().row();
-
-        TextField yField = new TextField(node.inputs.get(3).value);
-        yField.setStyle(new TextField.TextFieldStyle(yField.getStyle()));
-        yField.getStyle().font.getData().setScale(1.5f);
-        dialog.cont.add(yField).fillX().height(100f).row();
-
-        Label amountLabel = new Label("Amount:");
-        amountLabel.setFontScale(1.5f);
-        dialog.cont.add(amountLabel).left().row();
-
-        TextField amountField = new TextField(node.inputs.get(4).value);
-        amountField.setStyle(new TextField.TextFieldStyle(amountField.getStyle()));
-        amountField.getStyle().font.getData().setScale(1.5f);
-        dialog.cont.add(amountField).fillX().height(100f).row();
-
-        dialog.buttons.button("SAVE", () -> {
-            node.inputs.get(0).value = unitField.getText();
-            node.inputs.get(1).value = selectedLocation[0];
-            node.inputs.get(2).value = xField.getText();
-            node.inputs.get(3).value = yField.getText();
-            node.inputs.get(4).value = amountField.getText();
-            node.value = unitField.getText() + "|" + selectedLocation[0] + "|" + 
-                         xField.getText() + "|" + yField.getText() + "|" + amountField.getText();
-            dialog.hide();
-        }).size(300f, 100f);
-    }
-
-    private void showCreateModDialog(BaseDialog dialog, Node node) {
-        Label nameLabel = new Label("Mod Name:");
-        nameLabel.setFontScale(1.5f);
-        dialog.cont.add(nameLabel).left().row();
-
-        TextField nameField = new TextField(node.inputs.get(0).value);
-        nameField.setStyle(new TextField.TextFieldStyle(nameField.getStyle()));
-        nameField.getStyle().font.getData().setScale(1.5f);
-        dialog.cont.add(nameField).fillX().height(100f).row();
-
-        Label displayNameLabel = new Label("Display Name:");
-        displayNameLabel.setFontScale(1.5f);
-        dialog.cont.add(displayNameLabel).left().row();
-
-        TextField displayNameField = new TextField(node.inputs.get(1).value);
-        displayNameField.setStyle(new TextField.TextFieldStyle(displayNameField.getStyle()));
-        displayNameField.getStyle().font.getData().setScale(1.5f);
-        dialog.cont.add(displayNameField).fillX().height(100f).row();
-
-        Label authorLabel = new Label("Author:");
-        authorLabel.setFontScale(1.5f);
-        dialog.cont.add(authorLabel).left().row();
-
-        TextField authorField = new TextField(node.inputs.get(2).value);
-        authorField.setStyle(new TextField.TextFieldStyle(authorField.getStyle()));
-        authorField.getStyle().font.getData().setScale(1.5f);
-        dialog.cont.add(authorField).fillX().height(100f).row();
-
-        Label descLabel = new Label("Description:");
-        descLabel.setFontScale(1.5f);
-        dialog.cont.add(descLabel).left().row();
-
-        TextField descField = new TextField(node.inputs.get(3).value);
-        descField.setStyle(new TextField.TextFieldStyle(descField.getStyle()));
-        descField.getStyle().font.getData().setScale(1.5f);
-        dialog.cont.add(descField).fillX().height(100f).row();
-
-        Label versionLabel = new Label("Version:");
-        versionLabel.setFontScale(1.5f);
-        dialog.cont.add(versionLabel).left().row();
-
-        TextField versionField = new TextField(node.inputs.get(4).value);
-        versionField.setStyle(new TextField.TextFieldStyle(versionField.getStyle()));
-        versionField.getStyle().font.getData().setScale(1.5f);
-        dialog.cont.add(versionField).fillX().height(100f).row();
-
-        dialog.buttons.button("SAVE", () -> {
-            node.inputs.get(0).value = nameField.getText();
-            node.inputs.get(1).value = displayNameField.getText();
-            node.inputs.get(2).value = authorField.getText();
-            node.inputs.get(3).value = descField.getText();
-            node.inputs.get(4).value = versionField.getText();
-            node.value = nameField.getText();
-            dialog.hide();
-        }).size(300f, 100f);
-    }
-
-    private void showCreateBlockDialog(BaseDialog dialog, Node node) {
-        Label nameLabel = new Label("Block Name:");
-        nameLabel.setFontScale(1.5f);
-        dialog.cont.add(nameLabel).left().row();
-
-        TextField nameField = new TextField(node.inputs.get(0).value);
-        nameField.setStyle(new TextField.TextFieldStyle(nameField.getStyle()));
-        nameField.getStyle().font.getData().setScale(1.5f);
-        dialog.cont.add(nameField).fillX().height(100f).row();
-
-        Label displayNameLabel = new Label("Display Name:");
-        displayNameLabel.setFontScale(1.5f);
-        dialog.cont.add(displayNameLabel).left().row();
-
-        TextField displayNameField = new TextField(node.inputs.get(1).value);
-        displayNameField.setStyle(new TextField.TextFieldStyle(displayNameField.getStyle()));
-        displayNameField.getStyle().font.getData().setScale(1.5f);
-        dialog.cont.add(displayNameField).fillX().height(100f).row();
-
-        Label typeLabel = new Label("Block Type:");
-        typeLabel.setFontScale(1.5f);
-        dialog.cont.add(typeLabel).left().row();
-
-        TextField typeField = new TextField(node.inputs.get(2).value);
-        typeField.setStyle(new TextField.TextFieldStyle(typeField.getStyle()));
-        typeField.getStyle().font.getData().setScale(1.5f);
-        dialog.cont.add(typeField).fillX().height(100f).row();
-
-        Label healthLabel = new Label("Health:");
-        healthLabel.setFontScale(1.5f);
-        dialog.cont.add(healthLabel).left().row();
-
-        TextField healthField = new TextField(node.inputs.get(3).value);
-        healthField.setStyle(new TextField.TextFieldStyle(healthField.getStyle()));
-        healthField.getStyle().font.getData().setScale(1.5f);
-        dialog.cont.add(healthField).fillX().height(100f).row();
-
-        Label sizeLabel = new Label("Size:");
-        sizeLabel.setFontScale(1.5f);
-        dialog.cont.add(sizeLabel).left().row();
-
-        TextField sizeField = new TextField(node.inputs.get(4).value);
-        sizeField.setStyle(new TextField.TextFieldStyle(sizeField.getStyle()));
-        sizeField.getStyle().font.getData().setScale(1.5f);
-        dialog.cont.add(sizeField).fillX().height(100f).row();
-
-        dialog.buttons.button("SAVE", () -> {
-            node.inputs.get(0).value = nameField.getText();
-            node.inputs.get(1).value = displayNameField.getText();
-            node.inputs.get(2).value = typeField.getText();
-            node.inputs.get(3).value = healthField.getText();
-            node.inputs.get(4).value = sizeField.getText();
-            node.value = nameField.getText();
-            dialog.hide();
-        }).size(300f, 100f);
-    }
-
-    private void showCreateUnitDialog(BaseDialog dialog, Node node) {
-        Label nameLabel = new Label("Unit Name:");
-        nameLabel.setFontScale(1.5f);
-        dialog.cont.add(nameLabel).left().row();
-
-        TextField nameField = new TextField(node.inputs.get(0).value);
-        nameField.setStyle(new TextField.TextFieldStyle(nameField.getStyle()));
-        nameField.getStyle().font.getData().setScale(1.5f);
-        dialog.cont.add(nameField).fillX().height(100f).row();
-
-        Label displayNameLabel = new Label("Display Name:");
-        displayNameLabel.setFontScale(1.5f);
-        dialog.cont.add(displayNameLabel).left().row();
-
-        TextField displayNameField = new TextField(node.inputs.get(1).value);
-        displayNameField.setStyle(new TextField.TextFieldStyle(displayNameField.getStyle()));
-        displayNameField.getStyle().font.getData().setScale(1.5f);
-        dialog.cont.add(displayNameField).fillX().height(100f).row();
-
-        Label speedLabel = new Label("Speed:");
-        speedLabel.setFontScale(1.5f);
-        dialog.cont.add(speedLabel).left().row();
-
-        TextField speedField = new TextField(node.inputs.get(2).value);
-        speedField.setStyle(new TextField.TextFieldStyle(speedField.getStyle()));
-        speedField.getStyle().font.getData().setScale(1.5f);
-        dialog.cont.add(speedField).fillX().height(100f).row();
-
-        Label healthLabel = new Label("Health:");
-        healthLabel.setFontScale(1.5f);
-        dialog.cont.add(healthLabel).left().row();
-
-        TextField healthField = new TextField(node.inputs.get(3).value);
-        healthField.setStyle(new TextField.TextFieldStyle(healthField.getStyle()));
-        healthField.getStyle().font.getData().setScale(1.5f);
-        dialog.cont.add(healthField).fillX().height(100f).row();
-
-        Label flyingLabel = new Label("Flying (true/false):");
-        flyingLabel.setFontScale(1.5f);
-        dialog.cont.add(flyingLabel).left().row();
-
-        TextField flyingField = new TextField(node.inputs.get(4).value);
-        flyingField.setStyle(new TextField.TextFieldStyle(flyingField.getStyle()));
-        flyingField.getStyle().font.getData().setScale(1.5f);
-        dialog.cont.add(flyingField).fillX().height(100f).row();
-
-        dialog.buttons.button("SAVE", () -> {
-            node.inputs.get(0).value = nameField.getText();
-            node.inputs.get(1).value = displayNameField.getText();
-            node.inputs.get(2).value = speedField.getText();
-            node.inputs.get(3).value = healthField.getText();
-            node.inputs.get(4).value = flyingField.getText();
-            node.value = nameField.getText();
-            dialog.hide();
-        }).size(300f, 100f);
-    }
-
-    private void showCreateItemDialog(BaseDialog dialog, Node node) {
-        Label nameLabel = new Label("Item Name:");
-        nameLabel.setFontScale(1.5f);
-        dialog.cont.add(nameLabel).left().row();
-
-        TextField nameField = new TextField(node.inputs.get(0).value);
-        nameField.setStyle(new TextField.TextFieldStyle(nameField.getStyle()));
-        nameField.getStyle().font.getData().setScale(1.5f);
-        dialog.cont.add(nameField).fillX().height(100f).row();
-
-        Label displayNameLabel = new Label("Display Name:");
-        displayNameLabel.setFontScale(1.5f);
-        dialog.cont.add(displayNameLabel).left().row();
-
-        TextField displayNameField = new TextField(node.inputs.get(1).value);
-        displayNameField.setStyle(new TextField.TextFieldStyle(displayNameField.getStyle()));
-        displayNameField.getStyle().font.getData().setScale(1.5f);
-        dialog.cont.add(displayNameField).fillX().height(100f).row();
-
-        Label colorLabel = new Label("Color (hex):");
-        colorLabel.setFontScale(1.5f);
-        dialog.cont.add(colorLabel).left().row();
-
-        TextField colorField = new TextField(node.inputs.get(2).value);
-        colorField.setStyle(new TextField.TextFieldStyle(colorField.getStyle()));
-        colorField.getStyle().font.getData().setScale(1.5f);
-        dialog.cont.add(colorField).fillX().height(100f).row();
-
-        dialog.buttons.button("SAVE", () -> {
-            node.inputs.get(0).value = nameField.getText();
-            node.inputs.get(1).value = displayNameField.getText();
-            node.inputs.get(2).value = colorField.getText();
-            node.value = nameField.getText();
-            dialog.hide();
-        }).size(300f, 100f);
-    }
-
-    private void showAddSpriteDialog(BaseDialog dialog, Node node) {
-        Label nameLabel = new Label("Sprite Name:");
-        nameLabel.setFontScale(1.5f);
-        dialog.cont.add(nameLabel).left().row();
-
-        TextField nameField = new TextField(node.inputs.get(0).value);
-        nameField.setStyle(new TextField.TextFieldStyle(nameField.getStyle()));
-        nameField.getStyle().font.getData().setScale(1.5f);
-        dialog.cont.add(nameField).fillX().height(100f).row();
-
-        Label pathLabel = new Label("File Path:");
-        pathLabel.setFontScale(1.5f);
-        dialog.cont.add(pathLabel).left().row();
-
-        TextField pathField = new TextField(node.inputs.get(1).value);
-        pathField.setStyle(new TextField.TextFieldStyle(pathField.getStyle()));
-        pathField.getStyle().font.getData().setScale(1.5f);
-        dialog.cont.add(pathField).fillX().height(100f).row();
-
-        dialog.buttons.button("SAVE", () -> {
-            node.inputs.get(0).value = nameField.getText();
-            node.inputs.get(1).value = pathField.getText();
-            node.value = nameField.getText();
-            dialog.hide();
-        }).size(300f, 100f);
-    }
-
-    private void showCreateScriptDialog(BaseDialog dialog, Node node) {
-        Label nameLabel = new Label("Script Name:");
-        nameLabel.setFontScale(1.5f);
-        dialog.cont.add(nameLabel).left().row();
-
-        TextField nameField = new TextField(node.inputs.get(0).value);
-        nameField.setStyle(new TextField.TextFieldStyle(nameField.getStyle()));
-        nameField.getStyle().font.getData().setScale(1.5f);
-        dialog.cont.add(nameField).fillX().height(100f).row();
-
-        Label contentLabel = new Label("Script Content:");
-        contentLabel.setFontScale(1.5f);
-        dialog.cont.add(contentLabel).left().row();
-
-        TextField contentField = new TextField(node.inputs.get(1).value);
-        contentField.setStyle(new TextField.TextFieldStyle(contentField.getStyle()));
-        contentField.getStyle().font.getData().setScale(1.5f);
-        dialog.cont.add(contentField).fillX().height(100f).row();
-
-        dialog.buttons.button("SAVE", () -> {
-            node.inputs.get(0).value = nameField.getText();
-            node.inputs.get(1).value = contentField.getText();
-            node.value = nameField.getText();
-            dialog.hide();
-        }).size(300f, 100f);
-    }
-
-    private void showDefaultEditDialog(BaseDialog dialog, Node node) {
-        for(Node.NodeInput input : node.inputs) {
-            Label label = new Label(input.label + ":");
-            label.setFontScale(1.5f);
-            dialog.cont.add(label).left().row();
-
-            TextField field = new TextField(input.value);
-            field.setStyle(new TextField.TextFieldStyle(field.getStyle()));
-            field.getStyle().font.getData().setScale(1.5f);
-            dialog.cont.add(field).fillX().height(100f).row();
-
-            field.changed(() -> {
-                input.value = field.getText();
-                node.value = field.getText();
-            });
-        }
-
-        dialog.buttons.button("DONE", dialog::hide).size(300f, 100f);
     }private void saveScript() {
         BaseDialog dialog = new BaseDialog("Save Script");
 
@@ -723,8 +435,14 @@ public class NodeEditor extends BaseDialog {
 
     private void loadScript(String name) {
         try {
-            String loadFolder = editorMode.equals("game") ? "mods/studio-scripts/" : "mods/studio-mods/";
-            String json = Core.files.local(loadFolder + name + ".json").readString();
+            String loadFolder = editorMode.equals("game") ? StudioMod.scriptsFolder.path() + "/" : StudioMod.modsRootFolder.child("studio-mods").path() + "/";
+            Fi file = Core.files.absolute(loadFolder + name + ".json");
+            
+            if(!file.exists()) {
+                throw new Exception("File not found: " + file.absolutePath());
+            }
+            
+            String json = file.readString();
 
             Json jsonParser = new Json();
             jsonParser.setIgnoreUnknownFields(true);
@@ -780,7 +498,7 @@ public class NodeEditor extends BaseDialog {
         } catch(Exception e) {
             Log.err("Load failed: " + name, e);
             Vars.ui.showInfoFade("Load failed: " + e.getMessage());
-            statusLabel.setText("Load FAILED!");
+            statusLabel.setText("Load FAILED: " + e.getMessage());
         }
     }
 
