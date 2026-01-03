@@ -13,7 +13,7 @@ import mindustry.ui.*;
 import mindustry.ui.dialogs.*;
 
 public class NodeEditor extends BaseDialog {
-    private NodeCanvas canvas;
+    public NodeCanvas canvas;
     private String currentScriptName = "Untitled";
     private Label statusLabel;
     private String uiLayout = "bottom";
