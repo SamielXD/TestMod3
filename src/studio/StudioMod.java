@@ -1,4 +1,3 @@
-
 package studio;
 
 import arc.*;
@@ -326,7 +325,7 @@ public class StudioMod extends Mod {
             menuDialog.hide();
         }).row();
 
-        menuDialog.cont.button("[orange]Mod Manager\n[lightgray]Manage created mods", Icon.box, () -> {
+        menuDialog.cont.button("[orange]Mod Manager\n[lightgray]Manage ALL mods", Icon.box, () -> {
             showModManager();
             menuDialog.hide();
         }).row();
@@ -362,38 +361,59 @@ public class StudioMod extends Mod {
     }
 
     void showModManager() {
-        BaseDialog dialog = new BaseDialog("Mod Manager");
+        BaseDialog dialog = new BaseDialog("Mod Manager - ALL MODS");
         dialog.cont.defaults().size(500f, 100f).pad(10f);
 
-        Seq<Fi> mods = new Seq<>();
+        Seq<Fi> allMods = new Seq<>();
         Fi modsFolder = Core.files.local("mods/");
+        
+        Log.info("Scanning mods folder: " + modsFolder.path());
+        
         for(Fi folder : modsFolder.list()) {
-            if(folder.isDirectory() && !folder.name().equals("studio-scripts") && !folder.name().equals("studio-mods")) {
-                if(folder.child("mod.hjson").exists()) {
-                    mods.add(folder);
+            if(folder.isDirectory() && !folder.name().equals("studio-scripts")) {
+                Fi modFile = folder.child("mod.hjson");
+                Fi modJsonFile = folder.child("mod.json");
+                
+                if(modFile.exists() || modJsonFile.exists()) {
+                    allMods.add(folder);
+                    Log.info("Found mod: " + folder.name());
                 }
             }
         }
         
-        if(mods.size == 0) {
-            Label label = new Label("[lightgray]No mods created yet\nUse Mod Creator mode");
+        if(allMods.size == 0) {
+            Label label = new Label("[lightgray]No mods found\nCreate mods in Mod Creator mode");
             label.setFontScale(1.2f);
             dialog.cont.add(label).row();
         } else {
-            for(Fi modFolder : mods) {
+            Label infoLabel = new Label("[cyan]" + allMods.size + " mods found");
+            infoLabel.setFontScale(1.2f);
+            dialog.cont.add(infoLabel).padBottom(10f).row();
+            
+            for(Fi modFolder : allMods) {
                 String modName = modFolder.name();
+                boolean hasHjson = modFolder.child("mod.hjson").exists();
+                boolean hasJson = modFolder.child("mod.json").exists();
+                String type = hasHjson ? "[cyan]HJSON" : "[lime]JSON";
+                
                 Table row = new Table();
-                row.button("[cyan]" + modName, () -> {
-                    Vars.ui.showInfoText("Mod: " + modName, "Location: " + modFolder.path());
+                row.button(type + " " + modName, () -> {
+                    String info = "Name: " + modName + "\n" +
+                                 "Type: " + (hasHjson ? "HJSON" : "JSON") + "\n" +
+                                 "Path: " + modFolder.path();
+                    Vars.ui.showInfoText("Mod Details", info);
                 }).growX();
+                
                 row.button("Delete", Icon.trash, () -> {
                     Vars.ui.showConfirm("Delete " + modName + "?", "This cannot be undone!", () -> {
                         modFolder.deleteDirectory();
                         Vars.ui.showInfoFade("Deleted: " + modName);
+                        Log.info("Deleted mod: " + modFolder.path());
                         dialog.hide();
                         showModManager();
                     });
                 }).size(120f, 100f);
+                
                 dialog.cont.add(row).fillX().row();
             }
         }
