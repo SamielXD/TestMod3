@@ -200,20 +200,25 @@ public class NodeCanvas extends Element {
             Lines.stroke(8f);
             Lines.rect(screenPos.x, screenPos.y, screenWidth, screenHeight);
 
-            Draw.color(Color.white);
-            Fonts.outline.getData().setScale(1.2f * zoom);
-            Fonts.outline.draw(node.label, screenPos.x + 20f * zoom, screenPos.y + screenHeight - 30f * zoom);
+            if(StudioMod.showLabels) {
+                Draw.color(Color.white);
+                float labelScale = Math.min(zoom * 1.2f, 1.2f);
+                Fonts.outline.getData().setScale(labelScale);
+                Fonts.outline.draw(node.label, screenPos.x + 20f * zoom, screenPos.y + screenHeight - 30f * zoom);
 
-            if(!node.value.isEmpty()) {
-                Draw.color(Color.lightGray);
-                Fonts.outline.getData().setScale(1.0f * zoom);
-                String displayValue = node.value.length() > 25 ? node.value.substring(0, 25) + "..." : node.value;
-                Fonts.outline.draw(displayValue, screenPos.x + 20f * zoom, screenPos.y + screenHeight/2f);
+                if(!node.value.isEmpty()) {
+                    Draw.color(Color.lightGray);
+                    float valueScale = Math.min(zoom * 1.0f, 1.0f);
+                    Fonts.outline.getData().setScale(valueScale);
+                    String displayValue = node.value.length() > 25 ? node.value.substring(0, 25) + "..." : node.value;
+                    Fonts.outline.draw(displayValue, screenPos.x + 20f * zoom, screenPos.y + screenHeight/2f);
+                }
+
+                Draw.color(node.color.r * 0.8f, node.color.g * 0.8f, node.color.b * 0.8f, 1f);
+                float typeScale = Math.min(zoom * 0.7f, 0.7f);
+                Fonts.outline.getData().setScale(typeScale);
+                Fonts.outline.draw("[" + node.type.toUpperCase() + "]", screenPos.x + 20f * zoom, screenPos.y + 30f * zoom);
             }
-
-            Draw.color(node.color.r * 0.8f, node.color.g * 0.8f, node.color.b * 0.8f, 1f);
-            Fonts.outline.getData().setScale(0.7f * zoom);
-            Fonts.outline.draw("[" + node.type.toUpperCase() + "]", screenPos.x + 20f * zoom, screenPos.y + 30f * zoom);
 
             Vec2 inputScreen = worldToScreen(node.getInputPoint().x, node.getInputPoint().y);
             Draw.color(Color.green);
