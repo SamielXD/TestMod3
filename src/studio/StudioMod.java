@@ -11,7 +11,6 @@ import arc.scene.ui.*;
 import arc.scene.ui.layout.*;
 import arc.struct.*;
 import arc.util.*;
-import arc.util.serialization.*;
 import mindustry.*;
 import mindustry.content.*;
 import mindustry.game.EventType.*;
@@ -26,14 +25,16 @@ public class StudioMod extends Mod {
     public static Seq<Script> loadedScripts = new Seq<>();
     public static Fi scriptsFolder;
     public static Fi modsRootFolder;
-    public static String currentModName = "none";
     public static ObjectMap<String, String> variables = new ObjectMap<>();
 
     private NodeEditor nodeEditor;
     private Table floatingButton;
     private boolean floatingButtonDragging = false;
-    private float floatingButtonX = 100f;
-    private float floatingButtonY = 100f;
+    
+    public static float buttonSize = 80f;
+    public static Color buttonColor = Color.white;
+    public static float buttonOpacity = 0.8f;
+    public static boolean showLabels = true;
 
     public StudioMod() {
         Log.info("Studio - Visual Scripting System loading...");
@@ -49,12 +50,14 @@ public class StudioMod extends Mod {
         modsRootFolder = Core.files.local("mods/");
         modsRootFolder.mkdirs();
 
+        loadSettings();
+
         nodeEditor = new NodeEditor();
 
         Events.on(ClientLoadEvent.class, e -> {
             setupUI();
             setupFloatingButton();
-            setupSettingsButton();
+            setupSettingsMenu();
             loadAllScripts();
         });
 
@@ -77,6 +80,55 @@ public class StudioMod extends Mod {
         Log.info("Studio loaded successfully!");
     }
 
+    void loadSettings() {
+        try {
+            Fi settingsFile = Core.settings.getDataDirectory().child("studio-settings.json");
+            if(settingsFile.exists()) {
+                String json = settingsFile.readString();
+                ObjectMap<String, String> settings = new ObjectMap<>();
+                
+                String[] lines = json.split("\n");
+                for(String line : lines) {
+                    if(line.contains(":")) {
+                        String[] parts = line.replace("{", "").replace("}", "").replace("\"", "").split(":");
+                        if(parts.length == 2) {
+                            settings.put(parts[0].trim(), parts[1].trim().replace(",", ""));
+                        }
+                    }
+                }
+                
+                if(settings.containsKey("buttonSize")) {
+                    buttonSize = Float.parseFloat(settings.get("buttonSize"));
+                }
+                if(settings.containsKey("buttonOpacity")) {
+                    buttonOpacity = Float.parseFloat(settings.get("buttonOpacity"));
+                }
+                if(settings.containsKey("showLabels")) {
+                    showLabels = Boolean.parseBoolean(settings.get("showLabels"));
+                }
+                
+                Log.info("Settings loaded!");
+            }
+        } catch(Exception e) {
+            Log.err("Failed to load settings", e);
+        }
+    }
+
+    void saveSettings() {
+        try {
+            Fi settingsFile = Core.settings.getDataDirectory().child("studio-settings.json");
+            String json = "{\n" +
+                "  \"buttonSize\": " + buttonSize + ",\n" +
+                "  \"buttonOpacity\": " + buttonOpacity + ",\n" +
+                "  \"showLabels\": " + showLabels + "\n" +
+                "}";
+            settingsFile.writeString(json);
+            Log.info("Settings saved!");
+        } catch(Exception e) {
+            Log.err("Failed to save settings", e);
+        }
+    }
+
     void setupUI() {
         Vars.ui.menufrag.addButton("Studio", Icon.edit, () -> {
             showStudioMenu();
@@ -84,13 +136,20 @@ public class StudioMod extends Mod {
     }
 
     void setupFloatingButton() {
+        if(floatingButton != null) {
+            floatingButton.remove();
+        }
+
         floatingButton = new Table();
-        floatingButton.setSize(120f, 120f);
-        floatingButton.setPosition(floatingButtonX, floatingButtonY);
+        floatingButton.setSize(buttonSize, buttonSize);
+        
+        float savedX = Core.settings.getFloat("studio-button-x", 100f);
+        float savedY = Core.settings.getFloat("studio-button-y", 100f);
+        floatingButton.setPosition(savedX, savedY);
         
         ImageButton button = new ImageButton(Icon.edit);
-        button.getStyle().imageUpColor = Color.cyan;
-        button.setSize(120f, 120f);
+        button.getStyle().imageUpColor = buttonColor.cpy().a(buttonOpacity);
+        button.setSize(buttonSize, buttonSize);
         
         button.clicked(() -> {
             if(!floatingButtonDragging) {
@@ -123,8 +182,8 @@ public class StudioMod extends Mod {
                         Mathf.clamp(lastX + dx, 0, Core.graphics.getWidth() - floatingButton.getWidth()),
                         Mathf.clamp(lastY + dy, 0, Core.graphics.getHeight() - floatingButton.getHeight())
                     );
-                    floatingButtonX = floatingButton.x;
-                    floatingButtonY = floatingButton.y;
+                    Core.settings.put("studio-button-x", floatingButton.x);
+                    Core.settings.put("studio-button-y", floatingButton.y);
                 }
             }
 
@@ -134,32 +193,64 @@ public class StudioMod extends Mod {
             }
         });
 
-        floatingButton.add(button).size(120f, 120f);
+        floatingButton.add(button).size(buttonSize, buttonSize);
         floatingButton.touchable = Touchable.enabled;
         
         Core.scene.add(floatingButton);
         floatingButton.toFront();
     }
 
-    void setupSettingsButton() {
+    void setupSettingsMenu() {
         Vars.ui.settings.addCategory("Studio", Icon.edit, table -> {
-            table.defaults().size(600f, 80f).pad(10f);
+            table.defaults().left().pad(5f);
             
-            table.add("[cyan]Studio Visual Scripting").row();
+            table.add("[cyan]═══ FLOATING BUTTON ═══").padTop(10f).row();
+            
+            table.add("Button Size: " + (int)buttonSize).padTop(10f);
+            Slider sizeSlider = new Slider(40f, 200f, 10f, false);
+            sizeSlider.setValue(buttonSize);
+            sizeSlider.moved(val -> {
+                buttonSize = val;
+                table.getCells().get(1).get().setText("Button Size: " + (int)buttonSize);
+                setupFloatingButton();
+                saveSettings();
+            });
+            table.add(sizeSlider).width(400f).row();
+            
+            table.add("Button Opacity: " + (int)(buttonOpacity * 100) + "%").padTop(10f);
+            Slider opacitySlider = new Slider(0.1f, 1f, 0.1f, false);
+            opacitySlider.setValue(buttonOpacity);
+            opacitySlider.moved(val -> {
+                buttonOpacity = val;
+                table.getCells().get(3).get().setText("Button Opacity: " + (int)(buttonOpacity * 100) + "%");
+                setupFloatingButton();
+                saveSettings();
+            });
+            table.add(opacitySlider).width(400f).row();
+            
+            table.add("[cyan]═══ DISPLAY ═══").padTop(20f).row();
+            
+            table.button(showLabels ? "[green]Node Labels: ON" : "[red]Node Labels: OFF", () -> {
+                showLabels = !showLabels;
+                saveSettings();
+                setupSettingsMenu();
+                Vars.ui.settings.show();
+            }).width(400f).height(60f).row();
+            
+            table.add("[cyan]═══ QUICK ACCESS ═══").padTop(20f).row();
             
             table.button("Open Studio Editor", Icon.edit, () -> {
                 showStudioMenu();
-            }).row();
+            }).width(400f).height(60f).row();
             
-            table.button("Script Manager", Icon.book, () -> {
-                showScriptManager();
-            }).row();
+            table.button("Reset Button Position", Icon.refresh, () -> {
+                Core.settings.put("studio-button-x", 100f);
+                Core.settings.put("studio-button-y", 100f);
+                setupFloatingButton();
+                Vars.ui.showInfoFade("Button position reset!");
+            }).width(400f).height(60f).row();
             
-            table.button("Mod Manager", Icon.box, () -> {
-                showModManager();
-            }).row();
-            
-            table.add("[lightgray]Version: 1.0 | Mindustry 154").row();
+            table.add("[lightgray]Version: 1.0 | Mindustry 154").padTop(20f).row();
         });
     }
 
@@ -168,7 +259,7 @@ public class StudioMod extends Mod {
         menuDialog.cont.defaults().size(500f, 120f).pad(15f);
 
         Label titleLabel = new Label("[cyan]Choose Mode:");
-        titleLabel.setFontScale(2f);
+        titleLabel.setFontScale(1.5f);
         menuDialog.cont.add(titleLabel).padBottom(30f).row();
 
         menuDialog.cont.button("[lime]Script Editor\n[lightgray]Create visual scripts", Icon.edit, () -> {
@@ -188,47 +279,6 @@ public class StudioMod extends Mod {
 
         menuDialog.addCloseButton();
         menuDialog.show();
-    }
-
-    void showScriptManager() {
-        BaseDialog dialog = new BaseDialog("Script Manager");
-        dialog.cont.defaults().size(500f, 100f).pad(10f);
-
-        String loadPath = "mods/studio-scripts/";
-        Fi folder = Core.files.local(loadPath);
-
-        if(!folder.exists()) {
-            folder.mkdirs();
-        }
-
-        Seq<String> scripts = new Seq<>();
-        for(Fi file : folder.list()) {
-            if(file.extension().equals("json")) {
-                scripts.add(file.nameWithoutExtension());
-            }
-        }
-
-        if(scripts.size == 0) {
-            Label label = new Label("[lightgray]No saved scripts found");
-            label.setFontScale(1.3f);
-            dialog.cont.add(label).row();
-        } else {
-            for(String scriptName : scripts) {
-                Table row = new Table();
-                row.button("[cyan]" + scriptName, () -> {
-                    Vars.ui.showInfoText("Script: " + scriptName, "Click Load in editor to use");
-                }).growX();
-                row.button("Delete", Icon.trash, () -> {
-                    deleteScript(scriptName);
-                    dialog.hide();
-                    showScriptManager();
-                }).size(120f, 100f);
-                dialog.cont.add(row).fillX().row();
-            }
-        }
-
-        dialog.addCloseButton();
-        dialog.show();
     }
 
     void showExampleScripts() {
@@ -264,13 +314,16 @@ public class StudioMod extends Mod {
         Seq<Fi> mods = new Seq<>();
         Fi modsFolder = Core.files.local("mods/");
         for(Fi folder : modsFolder.list()) {
-            if(folder.isDirectory() && folder.child("mod.hjson").exists()) {
-                mods.add(folder);
+            if(folder.isDirectory() && !folder.name().equals("studio-scripts") && !folder.name().equals("studio-mods")) {
+                if(folder.child("mod.hjson").exists()) {
+                    mods.add(folder);
+                }
             }
         }
+        
         if(mods.size == 0) {
             Label label = new Label("[lightgray]No mods created yet\nUse Mod Creator mode");
-            label.setFontScale(1.3f);
+            label.setFontScale(1.2f);
             dialog.cont.add(label).row();
         } else {
             for(Fi modFolder : mods) {
@@ -280,9 +333,12 @@ public class StudioMod extends Mod {
                     Vars.ui.showInfoText("Mod: " + modName, "Location: " + modFolder.path());
                 }).growX();
                 row.button("Delete", Icon.trash, () -> {
-                    deleteMod(modFolder);
-                    dialog.hide();
-                    showModManager();
+                    Vars.ui.showConfirm("Delete " + modName + "?", "This cannot be undone!", () -> {
+                        modFolder.deleteDirectory();
+                        Vars.ui.showInfoFade("Deleted: " + modName);
+                        dialog.hide();
+                        showModManager();
+                    });
                 }).size(120f, 100f);
                 dialog.cont.add(row).fillX().row();
             }
@@ -292,25 +348,10 @@ public class StudioMod extends Mod {
         dialog.show();
     }
 
-    void deleteMod(Fi modFolder) {
-        Vars.ui.showConfirm("Delete Mod?", "Delete " + modFolder.name() + "?\nThis cannot be undone!", () -> {
-            modFolder.deleteDirectory();
-            Vars.ui.showInfoFade("Deleted: " + modFolder.name());
-        });
-    }
-
-    void deleteScript(String name) {
-        String loadPath = "mods/studio-scripts/";
-        Fi file = Core.files.local(loadPath + name + ".json");
-        if(file.exists()) {
-            file.delete();
-            Vars.ui.showInfoFade("Deleted: " + name);
-        }
-    }
-
     void createExampleHelloWorld() {
         nodeEditor.canvas.nodes.clear();
         nodeEditor.editorMode = "game";
+        nodeEditor.updateStatusLabel();
         Node event = new Node("event", "On Start", 0f, 0f, Color.green);
         Node action = new Node("action", "Message", 500f, 0f, Color.blue);
         action.inputs.get(0).value = "Hello from Studio!";
@@ -324,6 +365,7 @@ public class StudioMod extends Mod {
     void createExampleAutoSpawn() {
         nodeEditor.canvas.nodes.clear();
         nodeEditor.editorMode = "game";
+        nodeEditor.updateStatusLabel();
         Node event = new Node("event", "On Wave", 0f, 0f, Color.green);
         Node action = new Node("action", "Spawn Unit", 500f, 0f, Color.blue);
         action.inputs.get(0).value = "dagger";
@@ -337,6 +379,7 @@ public class StudioMod extends Mod {
 
     void createExampleSimpleMod() {
         nodeEditor.editorMode = "mod";
+        nodeEditor.updateStatusLabel();
         nodeEditor.canvas.nodes.clear();
 
         Node modFolder = new Node("mod", "Create Mod Folder", 0f, 0f, Color.cyan);
