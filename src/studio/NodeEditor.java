@@ -532,16 +532,26 @@ public class NodeEditor extends BaseDialog {
     }
 
     private void executeModNode(Node node, Fi currentFolder) {
+    try {
         Log.info("Executing mod node: " + node.label + " in folder: " + currentFolder.path());
-        
+
         if(node.label.equals("Create Folder")) {
             String folderName = node.inputs.get(0).value;
             Fi newFolder = currentFolder.child(folderName);
+            
+            // Make sure it exists as a directory
             if(!newFolder.exists()) {
                 newFolder.mkdirs();
                 Log.info("Created folder: " + newFolder.path());
             }
             
+            // Verify it's actually a directory
+            if(newFolder.isDirectory()) {
+                Log.info("Verified folder exists: " + newFolder.path());
+            } else {
+                Log.err("ERROR: " + newFolder.path() + " is not a directory!");
+            }
+
             for(Node child : node.connections) {
                 executeModNode(child, newFolder);
             }
@@ -558,8 +568,22 @@ public class NodeEditor extends BaseDialog {
                           "minGameVersion: 154\n";
 
             Fi hjsonFile = currentFolder.child("mod.hjson");
+            
+            // Ensure parent directory exists
+            if(!currentFolder.exists()) {
+                currentFolder.mkdirs();
+                Log.info("Created parent directory: " + currentFolder.path());
+            }
+            
             hjsonFile.writeString(hjson);
-            Log.info("Created mod.hjson: " + hjsonFile.path());
+            
+            // Verify file was created
+            if(hjsonFile.exists()) {
+                Log.info("✓ VERIFIED: Created mod.hjson at: " + hjsonFile.path());
+                Log.info("  File size: " + hjsonFile.length() + " bytes");
+            } else {
+                Log.err("✗ FAILED: mod.hjson was NOT created at: " + hjsonFile.path());
+            }
         }
         else if(node.label.equals("Create Block File")) {
             String blockName = node.inputs.get(0).value;
@@ -572,8 +596,23 @@ public class NodeEditor extends BaseDialog {
                           "size: " + size + "\n";
 
             Fi blockFile = currentFolder.child(blockName + ".hjson");
+            
+            // Ensure parent directory exists
+            if(!currentFolder.exists()) {
+                currentFolder.mkdirs();
+                Log.info("Created parent directory: " + currentFolder.path());
+            }
+            
             blockFile.writeString(hjson);
-            Log.info("Created block file: " + blockFile.path());
+            
+            // Verify file was created
+            if(blockFile.exists()) {
+                Log.info("✓ VERIFIED: Created block file at: " + blockFile.path());
+                Log.info("  File size: " + blockFile.length() + " bytes");
+                Log.info("  Full path: " + blockFile.absolutePath());
+            } else {
+                Log.err("✗ FAILED: Block file was NOT created at: " + blockFile.path());
+            }
         }
         else if(node.label.equals("Create Unit File")) {
             String unitName = node.inputs.get(0).value;
@@ -586,8 +625,22 @@ public class NodeEditor extends BaseDialog {
                           "speed: " + speed + "\n";
 
             Fi unitFile = currentFolder.child(unitName + ".hjson");
+            
+            // Ensure parent directory exists
+            if(!currentFolder.exists()) {
+                currentFolder.mkdirs();
+                Log.info("Created parent directory: " + currentFolder.path());
+            }
+            
             unitFile.writeString(hjson);
-            Log.info("Created unit file: " + unitFile.path());
+            
+            // Verify file was created
+            if(unitFile.exists()) {
+                Log.info("✓ VERIFIED: Created unit file at: " + unitFile.path());
+                Log.info("  File size: " + unitFile.length() + " bytes");
+            } else {
+                Log.err("✗ FAILED: Unit file was NOT created at: " + unitFile.path());
+            }
         }
         else if(node.label.equals("Create Item File")) {
             String itemName = node.inputs.get(0).value;
@@ -598,8 +651,25 @@ public class NodeEditor extends BaseDialog {
                           "cost: " + cost + "\n";
 
             Fi itemFile = currentFolder.child(itemName + ".hjson");
+            
+            // Ensure parent directory exists
+            if(!currentFolder.exists()) {
+                currentFolder.mkdirs();
+                Log.info("Created parent directory: " + currentFolder.path());
+            }
+            
             itemFile.writeString(hjson);
-            Log.info("Created item file: " + itemFile.path());
+            
+            // Verify file was created
+            if(itemFile.exists()) {
+                Log.info("✓ VERIFIED: Created item file at: " + itemFile.path());
+                Log.info("  File size: " + itemFile.length() + " bytes");
+            } else {
+                Log.err("✗ FAILED: Item file was NOT created at: " + itemFile.path());
+            }
         }
+    } catch(Exception e) {
+        Log.err("Error in executeModNode: " + node.label, e);
+        Vars.ui.showInfoFade("Error creating " + node.label + ": " + e.getMessage());
     }
 }
