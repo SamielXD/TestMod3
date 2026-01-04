@@ -672,4 +672,5 @@ public class NodeEditor extends BaseDialog {
         Log.err("Error in executeModNode: " + node.label, e);
         Vars.ui.showInfoFade("Error creating " + node.label + ": " + e.getMessage());
     }
+  }
 }
