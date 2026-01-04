@@ -3,123 +3,507 @@ package studio;
 import arc.*;
 import arc.files.*;
 import arc.graphics.*;
-import arc.input.*;
-import arc.math.*;
-import arc.scene.*;
-import arc.scene.event.*;
 import arc.scene.ui.*;
 import arc.scene.ui.layout.*;
-import arc.struct.*;
 import arc.util.*;
 import mindustry.*;
-import mindustry.content.*;
 import mindustry.game.EventType.*;
 import mindustry.gen.*;
 import mindustry.mod.*;
-import mindustry.type.*;
-import mindustry.world.*;
 import mindustry.ui.*;
 import mindustry.ui.dialogs.*;
 
 public class StudioMod extends Mod {
-    public static Seq<Script> loadedScripts = new Seq<>();
-    public static Fi scriptsFolder;
-    public static Fi modsRootFolder;
-    public static ObjectMap<String, String> variables = new ObjectMap<>();
-
-    private NodeEditor nodeEditor;
+    public static NodeEditor nodeEditor;
     private Table floatingButton;
-    private boolean floatingButtonDragging = false;
-    
-    public static float buttonSize = 80f;
-    public static Color buttonColor = Color.white;
-    public static float buttonOpacity = 0.8f;
-    public static boolean showLabels = true;
-    
-    public static float labelScale = 1.0f;
-    public static float infoScale = 1.0f;
-    public static float typeScale = 1.0f;
+    private static float buttonSize = 80f;
+    private static float buttonOpacity = 0.8f;
+    private static boolean showLabels = true;
+    private static float labelScale = 1.0f;
+    private static float infoScale = 1.0f;
+    private static float typeScale = 1.0f;
 
     public StudioMod() {
         Log.info("Studio - Visual Scripting System loading...");
-    }
-
-    @Override
-    public void init() {
-        Log.info("Studio initializing...");
-
-        scriptsFolder = Core.files.local("mods/studio-scripts/");
-        scriptsFolder.mkdirs();
-
-        modsRootFolder = Core.files.local("mods/");
-        modsRootFolder.mkdirs();
-
-        loadSettings();
-
-        nodeEditor = new NodeEditor();
-
+        
         Events.on(ClientLoadEvent.class, e -> {
-            setupUI();
-            setupFloatingButton();
-            setupSettingsMenu();
-            loadAllScripts();
+            Log.info("Studio initializing...");
+            
+            // Initialize node editor
+            nodeEditor = new NodeEditor();
+            
+            // Add Studio button to main menu
+            addStudioMenuButton();
+            
+            // Create floating button
+            createFloatingButton();
+            
+            // Add settings to game settings menu
+            addSettingsMenu();
+            
+            // Load settings
+            loadSettings();
+            
+            Log.info("Studio loaded successfully!");
         });
-
-        Events.on(WorldLoadEvent.class, e -> {
-            Log.info("WorldLoadEvent - executing 'On Start'");
-            executeEventScripts("On Start");
-        });
-
-        Events.on(WaveEvent.class, e -> {
-            Log.info("WaveEvent - executing 'On Wave'");
-            executeEventScripts("On Wave");
-        });
-
-        Events.on(BlockBuildEndEvent.class, e -> {
-            if(e.breaking) return;
-            Log.info("BuildEvent - executing 'On Build'");
-            executeEventScripts("On Build");
-        });
-
-        Log.info("Studio loaded successfully!");
     }
 
-    void loadSettings() {
+    private void addStudioMenuButton() {
         try {
-            Fi settingsFile = Core.settings.getDataDirectory().child("studio-settings.json");
-            if(settingsFile.exists()) {
-                String json = settingsFile.readString();
-                ObjectMap<String, String> settings = new ObjectMap<>();
-                
-                String[] lines = json.split("\n");
-                for(String line : lines) {
-                    if(line.contains(":")) {
-                        String[] parts = line.replace("{", "").replace("}", "").replace("\"", "").split(":");
-                        if(parts.length == 2) {
-                            settings.put(parts[0].trim(), parts[1].trim().replace(",", ""));
-                        }
+            Core.app.post(() -> {
+                try {
+                    if(Vars.ui != null && Vars.ui.menufrag != null) {
+                        Vars.ui.menufrag.addButton("Studio", () -> {
+                            showStudioMenu();
+                        });
+                    }
+                } catch(Exception ex) {
+                    Log.err("Failed to add Studio menu button", ex);
+                }
+            });
+        } catch(Exception ex) {
+            Log.err("Error in addStudioMenuButton", ex);
+        }
+    }
+
+    private void showStudioMenu() {
+        BaseDialog dialog = new BaseDialog("Studio");
+        dialog.cont.defaults().size(400f, 100f).pad(10f);
+        
+        dialog.cont.button("Script Editor", Icon.edit, () -> {
+            dialog.hide();
+            nodeEditor.show();
+        }).row();
+        
+        dialog.cont.button("Mod Manager", Icon.box, () -> {
+            dialog.hide();
+            showModManager();
+        }).row();
+        
+        dialog.cont.button("Load Example", Icon.download, () -> {
+            dialog.hide();
+            showExampleScripts();
+        }).row();
+        
+        dialog.addCloseButton();
+        dialog.show();
+    }
+
+    private void showModManager() {
+        BaseDialog dialog = new BaseDialog("Mod Manager");
+        dialog.cont.defaults().size(500f, 100f).pad(10f);
+        
+        Label info = new Label("[lightgray]Manage your mods");
+        info.setFontScale(1.2f);
+        dialog.cont.add(info).padBottom(20f).row();
+        
+        // Get all mods from mod directory
+        Fi modDir = Vars.modDirectory;
+        if(modDir.exists()) {
+            for(Fi folder : modDir.list()) {
+                if(folder.isDirectory() && !folder.name().equals("studio-scripts") && !folder.name().equals("studio-mods")) {
+                    Fi modHjson = folder.child("mod.hjson");
+                    if(modHjson.exists()) {
+                        Table modRow = new Table();
+                        modRow.button(folder.name(), () -> {
+                            Vars.ui.showInfoFade("Mod: " + folder.name());
+                        }).growX();
+                        
+                        modRow.button("Delete", Icon.trash, () -> {
+                            showDeleteConfirmation(folder);
+                            dialog.hide();
+                        }).size(100f, 100f);
+                        
+                        dialog.cont.add(modRow).fillX().row();
                     }
                 }
+            }
+        }
+        
+        dialog.addCloseButton();
+        dialog.show();
+    }
+
+    private void showDeleteConfirmation(Fi folder) {
+        BaseDialog confirmDialog = new BaseDialog("Confirm Delete");
+        confirmDialog.cont.add("[red]Delete mod: " + folder.name() + "?").pad(20f).row();
+        confirmDialog.cont.add("[lightgray]This cannot be undone!").pad(10f).row();
+        
+        confirmDialog.buttons.button("Cancel", confirmDialog::hide).size(150f, 60f);
+        confirmDialog.buttons.button("[red]Delete", () -> {
+            try {
+                folder.deleteDirectory();
+                Vars.ui.showInfoFade("[red]Deleted: " + folder.name());
+                Log.info("Deleted mod: " + folder.name());
+                confirmDialog.hide();
+            } catch(Exception e) {
+                Log.err("Failed to delete mod", e);
+                Vars.ui.showInfoFade("[red]Delete failed!");
+            }
+        }).size(150f, 60f);
+        
+        confirmDialog.show();
+    }
+
+    private void showExampleScripts() {
+        BaseDialog dialog = new BaseDialog("Example Scripts");
+        dialog.cont.defaults().size(500f, 120f).pad(10f);
+        
+        dialog.cont.button("[lime]Hello World\n[lightgray]Simple message script", () -> {
+            loadExampleHelloWorld();
+            dialog.hide();
+            nodeEditor.show();
+        }).row();
+        
+        dialog.cont.button("[cyan]Auto Spawn Units\n[lightgray]Spawn units on wave", () -> {
+            loadExampleAutoSpawn();
+            dialog.hide();
+            nodeEditor.show();
+        }).row();
+        
+        dialog.cont.button("[gold]Simple Mod\n[lightgray]Create a basic mod", () -> {
+            loadExampleSimpleMod();
+            dialog.hide();
+            nodeEditor.show();
+        }).row();
+        
+        dialog.addCloseButton();
+        dialog.show();
+    }
+
+    private void loadExampleHelloWorld() {
+        nodeEditor.canvas.nodes.clear();
+        nodeEditor.editorMode = "game";
+        nodeEditor.updateStatusLabel();
+        
+        Node startNode = new Node();
+        startNode.type = "event";
+        startNode.label = "On Start";
+        startNode.color = Color.green;
+        startNode.x = 100;
+        startNode.y = 300;
+        startNode.setupInputs();
+        
+        Node msgNode = new Node();
+        msgNode.type = "action";
+        msgNode.label = "Message";
+        msgNode.color = Color.blue;
+        msgNode.x = 400;
+        msgNode.y = 300;
+        msgNode.setupInputs();
+        msgNode.inputs.get(0).value = "Hello from Studio!";
+        msgNode.value = "Hello from Studio!";
+        
+        startNode.connections.add(msgNode);
+        
+        nodeEditor.canvas.nodes.add(startNode);
+        nodeEditor.canvas.nodes.add(msgNode);
+        
+        Vars.ui.showInfoFade("[lime]Loaded: Hello World");
+    }
+
+    private void loadExampleAutoSpawn() {
+        nodeEditor.canvas.nodes.clear();
+        nodeEditor.editorMode = "game";
+        nodeEditor.updateStatusLabel();
+        
+        Node waveNode = new Node();
+        waveNode.type = "event";
+        waveNode.label = "On Wave";
+        waveNode.color = Color.green;
+        waveNode.x = 100;
+        waveNode.y = 300;
+        waveNode.setupInputs();
+        
+        Node spawnNode = new Node();
+        spawnNode.type = "action";
+        spawnNode.label = "Spawn Unit";
+        spawnNode.color = Color.blue;
+        spawnNode.x = 400;
+        spawnNode.y = 300;
+        spawnNode.setupInputs();
+        spawnNode.inputs.get(0).value = "dagger";
+        spawnNode.inputs.get(1).value = "5";
+        spawnNode.inputs.get(2).value = "At Player";
+        spawnNode.value = "dagger|5|At Player";
+        
+        waveNode.connections.add(spawnNode);
+        
+        nodeEditor.canvas.nodes.add(waveNode);
+        nodeEditor.canvas.nodes.add(spawnNode);
+        
+        Vars.ui.showInfoFade("[lime]Loaded: Auto Spawn");
+    }
+
+    private void loadExampleSimpleMod() {
+        nodeEditor.canvas.nodes.clear();
+        nodeEditor.editorMode = "mod";
+        nodeEditor.updateStatusLabel();
+        
+        Node modFolderNode = new Node();
+        modFolderNode.type = "mod";
+        modFolderNode.label = "Create Mod Folder";
+        modFolderNode.color = Color.cyan;
+        modFolderNode.x = 100;
+        modFolderNode.y = 500;
+        modFolderNode.setupInputs();
+        modFolderNode.inputs.get(0).value = "mymod";
+        modFolderNode.value = "mymod";
+        
+        Node hjsonNode = new Node();
+        hjsonNode.type = "mod";
+        hjsonNode.label = "Create mod.hjson";
+        hjsonNode.color = Color.royal;
+        hjsonNode.x = 400;
+        hjsonNode.y = 500;
+        hjsonNode.setupInputs();
+        hjsonNode.inputs.get(0).value = "mymod";
+        hjsonNode.inputs.get(1).value = "My Mod";
+        hjsonNode.inputs.get(2).value = "Studio";
+        hjsonNode.value = "mymod|My Mod|Studio";
+        
+        Node contentFolderNode = new Node();
+        contentFolderNode.type = "mod";
+        contentFolderNode.label = "Create Folder";
+        contentFolderNode.color = Color.sky;
+        contentFolderNode.x = 400;
+        contentFolderNode.y = 350;
+        contentFolderNode.setupInputs();
+        contentFolderNode.inputs.get(0).value = "content";
+        contentFolderNode.value = "content";
+        
+        Node blocksFolderNode = new Node();
+        blocksFolderNode.type = "mod";
+        blocksFolderNode.label = "Create Folder";
+        blocksFolderNode.color = Color.sky;
+        blocksFolderNode.x = 700;
+        blocksFolderNode.y = 350;
+        blocksFolderNode.setupInputs();
+        blocksFolderNode.inputs.get(0).value = "blocks";
+        blocksFolderNode.value = "blocks";
+        
+        Node blockFileNode = new Node();
+        blockFileNode.type = "mod";
+        blockFileNode.label = "Create Block File";
+        blockFileNode.color = Color.pink;
+        blockFileNode.x = 1000;
+        blockFileNode.y = 350;
+        blockFileNode.setupInputs();
+        blockFileNode.inputs.get(0).value = "my-wall";
+        blockFileNode.inputs.get(1).value = "Wall";
+        blockFileNode.inputs.get(2).value = "1000";
+        blockFileNode.inputs.get(3).value = "2";
+        blockFileNode.value = "my-wall|Wall|1000|2";
+        
+        modFolderNode.connections.add(hjsonNode);
+        modFolderNode.connections.add(contentFolderNode);
+        contentFolderNode.connections.add(blocksFolderNode);
+        blocksFolderNode.connections.add(blockFileNode);
+        
+        nodeEditor.canvas.nodes.add(modFolderNode);
+        nodeEditor.canvas.nodes.add(hjsonNode);
+        nodeEditor.canvas.nodes.add(contentFolderNode);
+        nodeEditor.canvas.nodes.add(blocksFolderNode);
+        nodeEditor.canvas.nodes.add(blockFileNode);
+        
+        Vars.ui.showInfoFade("[lime]Loaded: Simple Mod");
+    }
+
+    private void createFloatingButton() {
+        floatingButton = new Table();
+        floatingButton.background(Styles.black6);
+        
+        floatingButton.button("STUDIO", Icon.edit, () -> {
+            nodeEditor.show();
+        }).size(buttonSize, buttonSize).get();
+        
+        // Load saved position or use default
+        float savedX = Core.settings.getFloat("studio-button-x", Core.graphics.getWidth() - 100);
+        float savedY = Core.settings.getFloat("studio-button-y", Core.graphics.getHeight() / 2);
+        
+        floatingButton.setPosition(savedX, savedY);
+        
+        // Make it draggable
+        floatingButton.touchable = arc.scene.event.Touchable.enabled;
+        floatingButton.addListener(new arc.scene.event.InputListener() {
+            float lastX, lastY;
+            
+            public boolean touchDown(arc.scene.event.InputEvent event, float x, float y, int pointer, arc.input.KeyCode button) {
+                lastX = x;
+                lastY = y;
+                floatingButton.toFront();
+                return true;
+            }
+            
+            public void touchDragged(arc.scene.event.InputEvent event, float x, float y, int pointer) {
+                floatingButton.x += x - lastX;
+                floatingButton.y += y - lastY;
                 
-                if(settings.containsKey("buttonSize")) {
-                    buttonSize = Float.parseFloat(settings.get("buttonSize"));
+                // Save position
+                Core.settings.put("studio-button-x", floatingButton.x);
+                Core.settings.put("studio-button-y", floatingButton.y);
+            }
+        });
+        
+        floatingButton.update(() -> {
+            floatingButton.color.a = buttonOpacity;
+            floatingButton.visible = Vars.ui.hudfrag.shown;
+        });
+        
+        Vars.ui.hudGroup.addChild(floatingButton);
+    }private void addSettingsMenu() {
+        Vars.ui.settings.addCategory("Studio", icon -> {
+            icon.row();
+            
+            // Floating Button Settings
+            icon.add("[cyan]FLOATING BUTTON").padTop(10f).row();
+            
+            icon.table(t -> {
+                t.add("Button Size: ").left();
+                t.slider(40f, 200f, 5f, buttonSize, val -> {
+                    buttonSize = val;
+                    updateFloatingButton();
+                }).width(300f).get();
+                t.add(new Label(() -> (int)buttonSize + "px")).padLeft(10f);
+            }).fillX().padTop(10f).row();
+            
+            icon.table(t -> {
+                t.add("Button Opacity: ").left();
+                t.slider(0.1f, 1.0f, 0.1f, buttonOpacity, val -> {
+                    buttonOpacity = val;
+                    updateFloatingButton();
+                }).width(300f).get();
+                t.add(new Label(() -> (int)(buttonOpacity * 100) + "%")).padLeft(10f);
+            }).fillX().padTop(10f).row();
+            
+            icon.button("Reset Button Position", () -> {
+                Core.settings.put("studio-button-x", Core.graphics.getWidth() - 100f);
+                Core.settings.put("studio-button-y", Core.graphics.getHeight() / 2f);
+                if(floatingButton != null) {
+                    floatingButton.setPosition(Core.graphics.getWidth() - 100f, Core.graphics.getHeight() / 2f);
                 }
-                if(settings.containsKey("buttonOpacity")) {
-                    buttonOpacity = Float.parseFloat(settings.get("buttonOpacity"));
-                }
-                if(settings.containsKey("showLabels")) {
-                    showLabels = Boolean.parseBoolean(settings.get("showLabels"));
-                }
-                if(settings.containsKey("labelScale")) {
-                    labelScale = Float.parseFloat(settings.get("labelScale"));
-                }
-                if(settings.containsKey("infoScale")) {
-                    infoScale = Float.parseFloat(settings.get("infoScale"));
-                }
-                if(settings.containsKey("typeScale")) {
-                    typeScale = Float.parseFloat(settings.get("typeScale"));
-                }
+                Vars.ui.showInfoFade("Button position reset");
+            }).size(300f, 50f).padTop(10f).row();
+            
+            icon.add("").padTop(20f).row();
+            
+            // Text Size Settings
+            icon.add("[cyan]TEXT SIZES").padTop(10f).row();
+            
+            icon.table(t -> {
+                t.add("Node Label Size: ").left();
+                t.slider(0.5f, 2.0f, 0.1f, labelScale, val -> {
+                    labelScale = val;
+                }).width(300f).get();
+                t.add(new Label(() -> String.format("%.1fx", labelScale))).padLeft(10f);
+            }).fillX().padTop(10f).row();
+            
+            icon.table(t -> {
+                t.add("Node Info Size: ").left();
+                t.slider(0.5f, 2.0f, 0.1f, infoScale, val -> {
+                    infoScale = val;
+                }).width(300f).get();
+                t.add(new Label(() -> String.format("%.1fx", infoScale))).padLeft(10f);
+            }).fillX().padTop(10f).row();
+            
+            icon.table(t -> {
+                t.add("Node Type Size: ").left();
+                t.slider(0.5f, 2.0f, 0.1f, typeScale, val -> {
+                    typeScale = val;
+                }).width(300f).get();
+                t.add(new Label(() -> String.format("%.1fx", typeScale))).padLeft(10f);
+            }).fillX().padTop(10f).row();
+            
+            icon.add("").padTop(20f).row();
+            
+            // Display Settings
+            icon.add("[cyan]DISPLAY").padTop(10f).row();
+            
+            icon.check("Node Labels", showLabels, val -> {
+                showLabels = val;
+            }).padTop(10f).row();
+            
+            icon.add("").padTop(20f).row();
+            
+            // Quick Access
+            icon.add("[cyan]QUICK ACCESS").padTop(10f).row();
+            
+            icon.button("Open Studio Editor", () -> {
+                Vars.ui.settings.hide();
+                nodeEditor.show();
+            }).size(300f, 50f).padTop(10f).row();
+        });
+    }
+
+    private void updateFloatingButton() {
+        if(floatingButton != null) {
+            floatingButton.clearChildren();
+            floatingButton.button("STUDIO", Icon.edit, () -> {
+                nodeEditor.show();
+            }).size(buttonSize, buttonSize).get();
+        }
+    }
+
+    public static float getButtonSize() {
+        return buttonSize;
+    }
+
+    public static float getButtonOpacity() {
+        return buttonOpacity;
+    }
+
+    public static boolean getShowLabels() {
+        return showLabels;
+    }
+
+    public static float getLabelScale() {
+        return labelScale;
+    }
+
+    public static float getInfoScale() {
+        return infoScale;
+    }
+
+    public static float getTypeScale() {
+        return typeScale;
+    }
+
+    private void saveSettings() {
+        try {
+            Fi settingsFile = Core.files.local("studio-settings.json");
+            
+            StringBuilder json = new StringBuilder();
+            json.append("{\n");
+            json.append("  \"buttonSize\": ").append(buttonSize).append(",\n");
+            json.append("  \"buttonOpacity\": ").append(buttonOpacity).append(",\n");
+            json.append("  \"showLabels\": ").append(showLabels).append(",\n");
+            json.append("  \"labelScale\": ").append(labelScale).append(",\n");
+            json.append("  \"infoScale\": ").append(infoScale).append(",\n");
+            json.append("  \"typeScale\": ").append(typeScale).append("\n");
+            json.append("}");
+            
+            settingsFile.writeString(json.toString());
+            Log.info("Settings saved!");
+        } catch(Exception e) {
+            Log.err("Failed to save settings", e);
+        }
+    }
+
+    private void loadSettings() {
+        try {
+            Fi settingsFile = Core.files.local("studio-settings.json");
+            if(settingsFile.exists()) {
+                String json = settingsFile.readString();
                 
+                // Manual JSON parsing
+                buttonSize = parseFloat(json, "buttonSize", 80f);
+                buttonOpacity = parseFloat(json, "buttonOpacity", 0.8f);
+                showLabels = parseBoolean(json, "showLabels", true);
+                labelScale = parseFloat(json, "labelScale", 1.0f);
+                infoScale = parseFloat(json, "infoScale", 1.0f);
+                typeScale = parseFloat(json, "typeScale", 1.0f);
+                
+                updateFloatingButton();
                 Log.info("Settings loaded!");
             }
         } catch(Exception e) {
@@ -127,602 +511,205 @@ public class StudioMod extends Mod {
         }
     }
 
-    void saveSettings() {
+    private float parseFloat(String json, String key, float defaultValue) {
         try {
-            Fi settingsFile = Core.settings.getDataDirectory().child("studio-settings.json");
-            String json = "{\n" +
-                "  \"buttonSize\": " + buttonSize + ",\n" +
-                "  \"buttonOpacity\": " + buttonOpacity + ",\n" +
-                "  \"showLabels\": " + showLabels + ",\n" +
-                "  \"labelScale\": " + labelScale + ",\n" +
-                "  \"infoScale\": " + infoScale + ",\n" +
-                "  \"typeScale\": " + typeScale + "\n" +
-                "}";
-            settingsFile.writeString(json);
-            Log.info("Settings saved!");
+            String search = "\"" + key + "\":";
+            int start = json.indexOf(search);
+            if(start == -1) return defaultValue;
+            
+            start += search.length();
+            while(start < json.length() && (json.charAt(start) == ' ' || json.charAt(start) == '\n')) start++;
+            
+            int end = start;
+            while(end < json.length() && json.charAt(end) != ',' && json.charAt(end) != '\n' && json.charAt(end) != '}') {
+                end++;
+            }
+            
+            String value = json.substring(start, end).trim();
+            return Float.parseFloat(value);
         } catch(Exception e) {
-            Log.err("Failed to save settings", e);
+            return defaultValue;
         }
     }
 
-    void setupUI() {
-        Vars.ui.menufrag.addButton("Studio", Icon.edit, () -> {
-            showStudioMenu();
-        });
-    }
-
-    void setupFloatingButton() {
-        if(floatingButton != null) {
-            floatingButton.remove();
-        }
-
-        floatingButton = new Table();
-        floatingButton.setSize(buttonSize, buttonSize);
-        
-        float savedX = Core.settings.getFloat("studio-button-x", 100f);
-        float savedY = Core.settings.getFloat("studio-button-y", 100f);
-        floatingButton.setPosition(savedX, savedY);
-        
-        ImageButton button = new ImageButton(Icon.edit);
-        button.getStyle().imageUpColor = buttonColor.cpy().a(buttonOpacity);
-        button.setSize(buttonSize, buttonSize);
-        
-        button.clicked(() -> {
-            if(!floatingButtonDragging) {
-                showStudioMenu();
+    private boolean parseBoolean(String json, String key, boolean defaultValue) {
+        try {
+            String search = "\"" + key + "\":";
+            int start = json.indexOf(search);
+            if(start == -1) return defaultValue;
+            
+            start += search.length();
+            while(start < json.length() && (json.charAt(start) == ' ' || json.charAt(start) == '\n')) start++;
+            
+            int end = start;
+            while(end < json.length() && json.charAt(end) != ',' && json.charAt(end) != '\n' && json.charAt(end) != '}') {
+                end++;
             }
-        });
-
-        button.addListener(new InputListener() {
-            float startX, startY;
-            float lastX, lastY;
             
-            @Override
-            public boolean touchDown(InputEvent event, float x, float y, int pointer, KeyCode btn) {
-                startX = x;
-                startY = y;
-                lastX = floatingButton.x;
-                lastY = floatingButton.y;
-                floatingButtonDragging = false;
-                return true;
-            }
-
-            @Override
-            public void touchDragged(InputEvent event, float x, float y, int pointer) {
-                float dx = x - startX;
-                float dy = y - startY;
-                
-                if(Math.abs(dx) > 10f || Math.abs(dy) > 10f) {
-                    floatingButtonDragging = true;
-                    floatingButton.setPosition(
-                        Mathf.clamp(lastX + dx, 0, Core.graphics.getWidth() - floatingButton.getWidth()),
-                        Mathf.clamp(lastY + dy, 0, Core.graphics.getHeight() - floatingButton.getHeight())
-                    );
-                    Core.settings.put("studio-button-x", floatingButton.x);
-                    Core.settings.put("studio-button-y", floatingButton.y);
-                }
-            }
-
-            @Override
-            public void touchUp(InputEvent event, float x, float y, int pointer, KeyCode btn) {
-                Timer.schedule(() -> floatingButtonDragging = false, 0.1f);
-            }
-        });
-
-        floatingButton.add(button).size(buttonSize, buttonSize);
-        floatingButton.touchable = Touchable.enabled;
-        
-        Core.scene.add(floatingButton);
-        floatingButton.toFront();
-    }
-
-    void setupSettingsMenu() {
-        Vars.ui.settings.addCategory("Studio", Icon.edit, table -> {
-            table.defaults().left().pad(5f);
-            
-            table.add("[cyan]═══ FLOATING BUTTON ═══").padTop(10f).row();
-            
-            Label sizeLabel = new Label("Button Size: " + (int)buttonSize);
-            table.add(sizeLabel).padTop(10f);
-            Slider sizeSlider = new Slider(40f, 200f, 10f, false);
-            sizeSlider.setValue(buttonSize);
-            sizeSlider.moved(val -> {
-                buttonSize = val;
-                sizeLabel.setText("Button Size: " + (int)buttonSize);
-                setupFloatingButton();
-                saveSettings();
-            });
-            table.add(sizeSlider).width(400f).row();
-            
-            Label opacityLabel = new Label("Button Opacity: " + (int)(buttonOpacity * 100) + "%");
-            table.add(opacityLabel).padTop(10f);
-            Slider opacitySlider = new Slider(0.1f, 1f, 0.1f, false);
-            opacitySlider.setValue(buttonOpacity);
-            opacitySlider.moved(val -> {
-                buttonOpacity = val;
-                opacityLabel.setText("Button Opacity: " + (int)(buttonOpacity * 100) + "%");
-                setupFloatingButton();
-                saveSettings();
-            });
-            table.add(opacitySlider).width(400f).row();
-            
-            table.add("[cyan]═══ TEXT SIZES ═══").padTop(20f).row();
-            
-            Label labelSizeLabel = new Label("Node Label Size: " + String.format("%.1fx", labelScale));
-            table.add(labelSizeLabel).padTop(10f);
-            Slider labelSizeSlider = new Slider(0.5f, 2.0f, 0.1f, false);
-            labelSizeSlider.setValue(labelScale);
-            labelSizeSlider.moved(val -> {
-                labelScale = val;
-                labelSizeLabel.setText("Node Label Size: " + String.format("%.1fx", labelScale));
-                saveSettings();
-            });
-            table.add(labelSizeSlider).width(400f).row();
-            
-            Label infoSizeLabel = new Label("Node Info Size: " + String.format("%.1fx", infoScale));
-            table.add(infoSizeLabel).padTop(10f);
-            Slider infoSizeSlider = new Slider(0.5f, 2.0f, 0.1f, false);
-            infoSizeSlider.setValue(infoScale);
-            infoSizeSlider.moved(val -> {
-                infoScale = val;
-                infoSizeLabel.setText("Node Info Size: " + String.format("%.1fx", infoScale));
-                saveSettings();
-            });
-            table.add(infoSizeSlider).width(400f).row();
-            
-            Label typeSizeLabel = new Label("Node Type Size: " + String.format("%.1fx", typeScale));
-            table.add(typeSizeLabel).padTop(10f);
-            Slider typeSizeSlider = new Slider(0.5f, 2.0f, 0.1f, false);
-            typeSizeSlider.setValue(typeScale);
-            typeSizeSlider.moved(val -> {
-                typeScale = val;
-                typeSizeLabel.setText("Node Type Size: " + String.format("%.1fx", typeScale));
-                saveSettings();
-            });
-            table.add(typeSizeSlider).width(400f).row();
-            
-            table.add("[cyan]═══ DISPLAY ═══").padTop(20f).row();
-            
-            table.button(showLabels ? "[green]Node Labels: ON" : "[red]Node Labels: OFF", () -> {
-                showLabels = !showLabels;
-                saveSettings();
-                setupSettingsMenu();
-                Vars.ui.settings.show();
-            }).width(400f).height(60f).row();
-            
-            table.add("[cyan]═══ QUICK ACCESS ═══").padTop(20f).row();
-            
-            table.button("Open Studio Editor", Icon.edit, () -> {
-                showStudioMenu();
-            }).width(400f).height(60f).row();
-            
-            table.button("Reset Button Position", Icon.refresh, () -> {
-                Core.settings.put("studio-button-x", 100f);
-                Core.settings.put("studio-button-y", 100f);
-                setupFloatingButton();
-                Vars.ui.showInfoFade("Button position reset!");
-            }).width(400f).height(60f).row();
-            
-            table.add("[lightgray]Version: 1.0 | Mindustry 154").padTop(20f).row();
-        });
-    }
-
-    void showStudioMenu() {
-        BaseDialog menuDialog = new BaseDialog("Studio");
-        menuDialog.cont.defaults().size(500f, 120f).pad(15f);
-
-        Label titleLabel = new Label("[cyan]Choose Mode:");
-        titleLabel.setFontScale(1.5f);
-        menuDialog.cont.add(titleLabel).padBottom(30f).row();
-
-        menuDialog.cont.button("[lime]Script Editor\n[lightgray]Create visual scripts", Icon.edit, () -> {
-            nodeEditor.show();
-            menuDialog.hide();
-        }).row();
-
-        menuDialog.cont.button("[sky]Example Scripts\n[lightgray]Browse pre-made scripts", Icon.book, () -> {
-            showExampleScripts();
-            menuDialog.hide();
-        }).row();
-
-        menuDialog.cont.button("[orange]Mod Manager\n[lightgray]Manage ALL mods", Icon.box, () -> {
-            showModManager();
-            menuDialog.hide();
-        }).row();
-
-        menuDialog.addCloseButton();
-        menuDialog.show();
-    }
-
-    void showExampleScripts() {
-        BaseDialog dialog = new BaseDialog("Example Scripts");
-        dialog.cont.defaults().size(550f, 100f).pad(10f);
-
-        dialog.cont.button("[green]Hello World\n[lightgray]Shows a message", () -> {
-            createExampleHelloWorld();
-            dialog.hide();
-            nodeEditor.show();
-        }).row();
-
-        dialog.cont.button("[blue]Auto Spawn Units\n[lightgray]Spawns units every wave", () -> {
-            createExampleAutoSpawn();
-            dialog.hide();
-            nodeEditor.show();
-        }).row();
-
-        dialog.cont.button("[cyan]Simple Mod\n[lightgray]Create a basic mod structure", () -> {
-            createExampleSimpleMod();
-            dialog.hide();
-            nodeEditor.show();
-        }).row();
-
-        dialog.addCloseButton();
-        dialog.show();
-    }
-
-    void showModManager() {
-        BaseDialog dialog = new BaseDialog("Mod Manager - ALL MODS");
-        dialog.cont.defaults().size(500f, 100f).pad(10f);
-
-        Seq<Fi> allMods = new Seq<>();
-        Fi modsFolder = Core.files.local("mods/");
-        
-        Log.info("Scanning mods folder: " + modsFolder.path());
-        
-        for(Fi folder : modsFolder.list()) {
-            if(folder.isDirectory() && !folder.name().equals("studio-scripts")) {
-                Fi modFile = folder.child("mod.hjson");
-                Fi modJsonFile = folder.child("mod.json");
-                
-                if(modFile.exists() || modJsonFile.exists()) {
-                    allMods.add(folder);
-                    Log.info("Found mod: " + folder.name());
-                }
-            }
-        }
-        
-        if(allMods.size == 0) {
-            Label label = new Label("[lightgray]No mods found\nCreate mods in Mod Creator mode");
-            label.setFontScale(1.2f);
-            dialog.cont.add(label).row();
-        } else {
-            Label infoLabel = new Label("[cyan]" + allMods.size + " mods found");
-            infoLabel.setFontScale(1.2f);
-            dialog.cont.add(infoLabel).padBottom(10f).row();
-            
-            for(Fi modFolder : allMods) {
-                String modName = modFolder.name();
-                boolean hasHjson = modFolder.child("mod.hjson").exists();
-                boolean hasJson = modFolder.child("mod.json").exists();
-                String type = hasHjson ? "[cyan]HJSON" : "[lime]JSON";
-                
-                Table row = new Table();
-                row.button(type + " " + modName, () -> {
-                    String info = "Name: " + modName + "\n" +
-                                 "Type: " + (hasHjson ? "HJSON" : "JSON") + "\n" +
-                                 "Path: " + modFolder.path();
-                    Vars.ui.showInfoText("Mod Details", info);
-                }).growX();
-                
-                row.button("Delete", Icon.trash, () -> {
-                    Vars.ui.showConfirm("Delete " + modName + "?", "This cannot be undone!", () -> {
-                        modFolder.deleteDirectory();
-                        Vars.ui.showInfoFade("Deleted: " + modName);
-                        Log.info("Deleted mod: " + modFolder.path());
-                        dialog.hide();
-                        showModManager();
-                    });
-                }).size(120f, 100f);
-                
-                dialog.cont.add(row).fillX().row();
-            }
-        }
-
-        dialog.addCloseButton();
-        dialog.show();
-    }
-
-    void createExampleHelloWorld() {
-        nodeEditor.canvas.nodes.clear();
-        nodeEditor.editorMode = "game";
-        nodeEditor.updateStatusLabel();
-        Node event = new Node("event", "On Start", 0f, 0f, Color.green);
-        Node action = new Node("action", "Message", 500f, 0f, Color.blue);
-        action.inputs.get(0).value = "Hello from Studio!";
-        action.value = "Hello from Studio!";
-        event.connections.add(action);
-        nodeEditor.canvas.nodes.add(event);
-        nodeEditor.canvas.nodes.add(action);
-        Vars.ui.showInfoFade("Example loaded!");
-    }
-
-    void createExampleAutoSpawn() {
-        nodeEditor.canvas.nodes.clear();
-        nodeEditor.editorMode = "game";
-        nodeEditor.updateStatusLabel();
-        Node event = new Node("event", "On Wave", 0f, 0f, Color.green);
-        Node action = new Node("action", "Spawn Unit", 500f, 0f, Color.blue);
-        action.inputs.get(0).value = "dagger";
-        action.inputs.get(1).value = "3";
-        action.inputs.get(2).value = "At Player";
-        action.value = "dagger|3|At Player";
-        event.connections.add(action);
-        nodeEditor.canvas.nodes.add(event);
-        nodeEditor.canvas.nodes.add(action);
-        Vars.ui.showInfoFade("Example loaded!");
-    }
-
-    void createExampleSimpleMod() {
-        nodeEditor.editorMode = "mod";
-        nodeEditor.updateStatusLabel();
-        nodeEditor.canvas.nodes.clear();
-
-        Node modFolder = new Node("mod", "Create Mod Folder", 0f, 0f, Color.cyan);
-        modFolder.inputs.get(0).value = "mymod";
-
-        Node modHjson = new Node("mod", "Create mod.hjson", 500f, 0f, Color.royal);
-        modHjson.inputs.get(0).value = "mymod";
-        modHjson.inputs.get(1).value = "My First Mod";
-        modHjson.inputs.get(2).value = "YourName";
-
-        Node contentFolder = new Node("mod", "Create Folder", 500f, 300f, Color.sky);
-        contentFolder.inputs.get(0).value = "content";
-
-        Node blocksFolder = new Node("mod", "Create Folder", 1000f, 300f, Color.sky);
-        blocksFolder.inputs.get(0).value = "blocks";
-
-        Node blockFile = new Node("mod", "Create Block File", 1500f, 300f, Color.pink);
-        blockFile.inputs.get(0).value = "my-wall";
-        blockFile.inputs.get(1).value = "Wall";
-        blockFile.inputs.get(2).value = "500";
-        blockFile.inputs.get(3).value = "1";
-
-        modFolder.connections.add(modHjson);
-        modFolder.connections.add(contentFolder);
-        contentFolder.connections.add(blocksFolder);
-        blocksFolder.connections.add(blockFile);
-
-        nodeEditor.canvas.nodes.add(modFolder);
-        nodeEditor.canvas.nodes.add(modHjson);
-        nodeEditor.canvas.nodes.add(contentFolder);
-        nodeEditor.canvas.nodes.add(blocksFolder);
-        nodeEditor.canvas.nodes.add(blockFile);
-
-        Vars.ui.showInfoFade("Example loaded! Click Run to create mod.");
-    }
-
-    public static void loadAllScripts() {
-        loadedScripts.clear();
-        for(Fi file : scriptsFolder.list()) {
-            if(file.extension().equals("json")) {
-                try {
-                    Script script = new Script();
-                    script.fileName = file.name();
-                    loadedScripts.add(script);
-                    Log.info("Loaded script: " + file.name());
-                } catch(Exception ex) {
-                    Log.err("Failed to load script: " + file.name(), ex);
-                }
-            }
+            String value = json.substring(start, end).trim();
+            return Boolean.parseBoolean(value);
+        } catch(Exception e) {
+            return defaultValue;
         }
     }
 
-    public static void executeEventScripts(String eventLabel) {
-        for(Script script : loadedScripts) {
-            if(!script.enabled) continue;
-            for(Node node : script.nodes) {
-                if(node.type.equals("event") && node.label.equalsIgnoreCase(eventLabel)) {
-                    Log.info("Executing: " + node.label);
-                    executeNodeChain(node, script);
-                }
-            }
-        }
-    }
-
-    public static void executeNodeChain(Node node, Script script) {
-        executeNode(node, script);
-        for(Node conn : node.connections) {
-            executeNode(conn, script);
-        }
-    }
-
-    public static void executeNode(Node node, Script script) {
-        Log.info("Executing node: " + node.label);
-
-        switch(node.type) {
-            case "action":
-                executeAction(node);
-                for(Node conn : node.connections) {
-                    executeNode(conn, script);
-                }
-                break;
-
-            case "logic":
-                executeLogic(node, script);
-                break;
-
+    public static void executeNodeChain(Node startNode, Node previousNode) {
+        if(startNode == null) return;
+        
+        Log.info("Executing node: " + startNode.label);
+        
+        // Execute current node
+        switch(startNode.type) {
             case "event":
-                for(Node conn : node.connections) {
-                    executeNode(conn, script);
-                }
+                // Events just trigger the chain
+                break;
+                
+            case "action":
+                executeAction(startNode);
+                break;
+                
+            case "logic":
+                executeLogic(startNode);
+                break;
+        }
+        
+        // Execute connected nodes
+        for(Node connected : startNode.connections) {
+            executeNodeChain(connected, startNode);
+        }
+    }
+
+    private static void executeAction(Node node) {
+        switch(node.label) {
+            case "Message":
+                String message = node.inputs.size > 0 ? node.inputs.get(0).value : "Hello!";
+                Vars.ui.showInfoToast(message, 3);
+                break;
+                
+            case "Spawn Unit":
+                spawnUnits(node);
+                break;
+                
+            case "Set Block":
+                setBlock(node);
                 break;
         }
     }
 
-    public static void executeAction(Node node) {
-        String label = node.label.toLowerCase();
-
-        if(label.contains("message")) {
-            String message = node.inputs.size > 0 ? node.inputs.get(0).value : "Hello!";
-            Vars.ui.showInfoFade(message);
-            Log.info("Message: " + message);
-        }
-        else if(label.contains("spawn unit")) {
-            try {
-                String unitName = node.inputs.get(0).value.toLowerCase().trim();
-                int amount = Integer.parseInt(node.inputs.get(1).value);
-                String spawnLoc = node.inputs.size > 2 ? node.inputs.get(2).value : "At Player";
-
-                UnitType type = Vars.content.units().find(u -> u.name.equals(unitName));
-                if(type == null) {
-                    Log.warn("Unit not found: " + unitName);
-                    type = UnitTypes.dagger;
+    private static void spawnUnits(Node node) {
+        try {
+            if(node.inputs.size < 3) return;
+            
+            String unitName = node.inputs.get(0).value;
+            int amount = Integer.parseInt(node.inputs.get(1).value);
+            String spawnLocation = node.inputs.get(2).value;
+            
+            mindustry.type.UnitType unitType = mindustry.content.UnitTypes.dagger;
+            
+            // Find unit type
+            for(mindustry.type.UnitType type : mindustry.content.UnitTypes.all) {
+                if(type.name.equals(unitName)) {
+                    unitType = type;
+                    break;
                 }
-
-                float spawnX = 0f, spawnY = 0f;
-
-                if(spawnLoc.equals("At Player")) {
-                    if(Vars.player != null && Vars.player.unit() != null) {
-                        spawnX = Vars.player.x;
-                        spawnY = Vars.player.y;
-                    }
-                }
-                else if(spawnLoc.equals("At Core")) {
-                    if(Vars.player != null && Vars.player.team() != null && Vars.player.team().core() != null) {
-                        spawnX = Vars.player.team().core().x + 800f;
-                        spawnY = Vars.player.team().core().y + 800f;
-                    }
-                }
-                else if(spawnLoc.equals("At Coordinates")) {
-                    try {
-                        spawnX = Float.parseFloat(node.inputs.get(3).value) * 8f;
-                        spawnY = Float.parseFloat(node.inputs.get(4).value) * 8f;
-                    } catch(Exception e) {
-                        Log.err("Invalid coordinates", e);
-                        spawnX = 0;
-                        spawnY = 0;
-                    }
-                }
-
-                for(int i = 0; i < amount; i++) {
-                    float offsetX = (float)(Math.random() * 64f - 32f);
-                    float offsetY = (float)(Math.random() * 64f - 32f);
-                    type.spawn(Vars.player.team(), spawnX + offsetX, spawnY + offsetY);
-                }
-
-                Vars.ui.showInfoFade("Spawned " + amount + "x " + type.name + " at " + spawnLoc);
-                Log.info("Spawned " + amount + " " + unitName + " at " + spawnLoc);
-            } catch(Exception e) {
-                Log.err("Failed to spawn unit", e);
             }
-        }
-        else if(label.contains("set block")) {
-            try {
-                int x = Integer.parseInt(node.inputs.get(0).value);
-                int y = Integer.parseInt(node.inputs.get(1).value);
-                String blockName = node.inputs.get(2).value.toLowerCase().trim();
-
-                Block block = Vars.content.blocks().find(b -> b.name.equals(blockName));
-                if(block != null && Vars.world != null) {
-                    Vars.world.tile(x, y).setNet(block, Vars.player.team(), 0);
-                    Log.info("Set block at (" + x + ", " + y + ") to " + blockName);
+            
+            // Get spawn position
+            float spawnX = Vars.player.x;
+            float spawnY = Vars.player.y;
+            
+            if(spawnLocation.equals("At Core")) {
+                mindustry.world.blocks.storage.CoreBlock.CoreBuild core = Vars.player.team().core();
+                if(core != null) {
+                    // Spawn 800 tiles away from core (safe distance)
+                    float angle = arc.math.Mathf.random(360f);
+                    spawnX = core.x + arc.math.Angles.trnsx(angle, 800f * 8f);
+                    spawnY = core.y + arc.math.Angles.trnsy(angle, 800f * 8f);
                 }
-            } catch(Exception e) {
-                Log.err("Failed to set block", e);
+            } else if(spawnLocation.equals("At Player")) {
+                // Spawn near player with random offset
+                float angle = arc.math.Mathf.random(360f);
+                float distance = arc.math.Mathf.random(64f, 128f);
+                spawnX = Vars.player.x + arc.math.Angles.trnsx(angle, distance);
+                spawnY = Vars.player.y + arc.math.Angles.trnsy(angle, distance);
             }
+            
+            // Spawn units
+            for(int i = 0; i < amount; i++) {
+                float angle = arc.math.Mathf.random(360f);
+                float distance = arc.math.Mathf.random(32f);
+                float finalX = spawnX + arc.math.Angles.trnsx(angle, distance);
+                float finalY = spawnY + arc.math.Angles.trnsy(angle, distance);
+                
+                unitType.spawn(Vars.player.team(), finalX, finalY);
+            }
+            
+            Log.info("Spawned " + amount + " " + unitName + " at " + spawnLocation);
+            Vars.ui.showInfoToast("Spawned " + amount + " " + unitName, 2);
+            
+        } catch(Exception e) {
+            Log.err("Failed to spawn unit", e);
         }
     }
 
-    public static void executeLogic(Node node, Script script) {
-        String label = node.label.toLowerCase();
-
-        if(label.contains("wait")) {
-            try {
-                float seconds = Float.parseFloat(node.inputs.get(0).value);
-                Timer.schedule(() -> {
-                    for(Node conn : node.connections) {
-                        executeNode(conn, script);
-                    }
-                }, seconds);
-                Log.info("Waiting " + seconds + " seconds");
-            } catch(Exception e) {
-                Log.err("Wait failed", e);
-            }
-        }
-        else if(label.contains("if")) {
-            String condition = node.inputs.get(0).value;
-            boolean result = evaluateCondition(condition);
-            if(result) {
-                for(Node conn : node.connections) {
-                    executeNode(conn, script);
+    private static void setBlock(Node node) {
+        try {
+            if(node.inputs.size < 3) return;
+            
+            String blockName = node.inputs.get(0).value;
+            int x = Integer.parseInt(node.inputs.get(1).value);
+            int y = Integer.parseInt(node.inputs.get(2).value);
+            
+            mindustry.world.Block block = mindustry.content.Blocks.copperWall;
+            
+            // Find block type
+            for(mindustry.world.Block b : mindustry.content.Blocks.all()) {
+                if(b.name.equals(blockName)) {
+                    block = b;
+                    break;
                 }
             }
-            Log.info("If condition: " + condition + " = " + result);
-        }
-        else if(label.contains("loop")) {
-            try {
-                int count = Integer.parseInt(node.inputs.get(0).value);
-                for(int i = 0; i < count; i++) {
-                    for(Node conn : node.connections) {
-                        executeNode(conn, script);
-                    }
-                }
-                Log.info("Looped " + count + " times");
-            } catch(Exception e) {
-                Log.err("Loop failed", e);
+            
+            mindustry.world.Tile tile = Vars.world.tile(x, y);
+            if(tile != null) {
+                tile.setNet(block, Vars.player.team(), 0);
+                Vars.ui.showInfoToast("Placed " + blockName, 2);
             }
-        }
-        else if(label.contains("set variable")) {
-            String varName = node.inputs.get(0).value;
-            String varValue = node.inputs.get(1).value;
-            variables.put(varName, varValue);
-            Log.info("Set variable: " + varName + " = " + varValue);
-
-            for(Node conn : node.connections) {
-                executeNode(conn, script);
-            }
-        }
-        else if(label.contains("get variable")) {
-            String varName = node.inputs.get(0).value;
-            String value = variables.get(varName, "undefined");
-            Vars.ui.showInfoFade(varName + " = " + value);
-            Log.info("Get variable: " + varName + " = " + value);
-
-            for(Node conn : node.connections) {
-                executeNode(conn, script);
-            }
+            
+        } catch(Exception e) {
+            Log.err("Failed to set block", e);
         }
     }
 
-    public static boolean evaluateCondition(String condition) {
-        condition = condition.trim().toLowerCase();
-
-        if(condition.equals("true")) return true;
-        if(condition.equals("false")) return false;
-
-        if(condition.contains("==")) {
-            String[] parts = condition.split("==");
-            if(parts.length == 2) {
-                String left = parts[0].trim();
-                String right = parts[1].trim();
-
-                String leftVal = variables.get(left, left);
-                String rightVal = variables.get(right, right);
-
-                return leftVal.equals(rightVal);
-            }
+    private static void executeLogic(Node node) {
+        switch(node.label) {
+            case "Wait":
+                // Wait logic would need timer implementation
+                break;
+                
+            case "If":
+                // Conditional logic
+                break;
+                
+            case "Loop":
+                // Loop logic
+                break;
+                
+            case "Set Variable":
+                // Variable storage
+                break;
+                
+            case "Get Variable":
+                // Variable retrieval
+                break;
         }
-
-        if(condition.contains(">")) {
-            String[] parts = condition.split(">");
-            if(parts.length == 2) {
-                try {
-                    float left = Float.parseFloat(variables.get(parts[0].trim(), parts[0].trim()));
-                    float right = Float.parseFloat(variables.get(parts[1].trim(), parts[1].trim()));
-                    return left > right;
-                } catch(Exception e) {
-                    return false;
-                }
-            }
-        }
-
-        return true;
     }
 
-    public static class Script {
-        public String name = "Untitled";
-        public String fileName = "";
-        public boolean enabled = true;
-        public Seq<Node> nodes = new Seq<>();
+    @Override
+    public void init() {
+        // Save settings on exit
+        Events.on(WorldLoadEvent.class, e -> {
+            saveSettings();
+        });
     }
 }
